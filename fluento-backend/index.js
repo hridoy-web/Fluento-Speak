@@ -236,6 +236,7 @@ app.get('/api/lessons/:id', async (req, res, next) => {
 /** 4. Upload API (Add Lesson) Protected **/
 app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   try {
+    console.log('Incoming POST /api/lessons body:', req.body);
     const { title, shortDescription, fullDescription, category, difficulty, price, imageUrl, imageUrls } = req.body;
 
     if (!title || !shortDescription || !fullDescription || !category || !difficulty) {

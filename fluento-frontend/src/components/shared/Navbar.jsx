@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
-import Button from '@/components/ui/Button';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiMenu, FiX, FiUser, FiLogOut, FiBookOpen, FiCompass, FiPlusCircle, FiHome } from 'react-icons/fi';
+import { FiMenu, FiUser, FiLogOut, FiBookOpen, FiCompass, FiPlusCircle, FiHome, FiSliders } from 'react-icons/fi';
+import Image from 'next/image';
+import BrandLogo from '../ui/BrandLogo';
 
 const NAV_PUBLIC = [
   { href: '/', label: 'Home', icon: FiHome },
@@ -17,264 +16,198 @@ const NAV_AUTH = [
   { href: '/', label: 'Home', icon: FiHome },
   { href: '/explore', label: 'Explore', icon: FiCompass },
   { href: '/items/add', label: 'Add Lesson', icon: FiPlusCircle },
-  { href: '/items/manage', label: 'Dashboard', icon: FiBookOpen },
+  { href: '/items/manage', label: 'Manage Lessons', icon: FiBookOpen },
 ];
 
 export default function Navbar() {
   const { data: session, isPending } = authClient.useSession();
   const pathname = usePathname();
-  const router = useRouter();
-  const [scrolled, setScrolled] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  useEffect(() => {
-    setMobileOpen(false);
-    setDropdownOpen(false);
-  }, [pathname]);
-
-  // Handle clicking outside the dropdown to close it
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleLogout = async () => {
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push('/');
-        },
-      },
-    });
-  };
-
+  
   const user = session?.user;
   const navLinks = user ? NAV_AUTH : NAV_PUBLIC;
 
-  return (
-    <header
-      className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-white/80 backdrop-blur-lg shadow-sm border-b border-slate-200/50'
-          : 'bg-transparent'
-      }`}
-    >
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16 lg:h-18">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary to-accent flex items-center justify-center shadow-glow group-hover:shadow-glow-accent transition-all duration-300">
-            <span className="font-display font-black text-white text-base">F</span>
-          </div>
-          <span className={`font-display font-bold text-xl tracking-tight transition-colors duration-300 ${scrolled ? 'text-primary' : 'text-white'}`}>
-            Fluento <span className="bg-gradient-to-br from-secondary to-accent bg-clip-text text-transparent">AI</span>
-          </span>
-        </Link>
+  const handleLogout = async () => {
+    await authClient.signOut({
+      redirectTo: '/',
+    });
+  };
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex items-center gap-1">
+  const avatarSrc = user?.image || '/images/user-icon-logo.png';
+  
+  // Extract user first name
+  const firstName = user?.name ? user.name.split(' ')[0] : '';
+
+  return (
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 transition-all">
+      <div className="w-11/12 mx-auto flex items-center justify-between h-16">
+        
+       <BrandLogo/>
+
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-1 bg-slate-100/70 p-1 rounded-xl border border-slate-200/40">
           {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`relative px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
                 pathname === link.href
-                  ? scrolled
-                    ? 'text-secondary bg-secondary/10'
-                    : 'text-secondary-light bg-white/10'
-                  : scrolled
-                  ? 'text-primary/70 hover:text-secondary hover:bg-secondary/8'
-                  : 'text-white/85 hover:text-white hover:bg-white/10'
+                  ? 'text-indigo-600 bg-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               {link.label}
-              {pathname === link.href && (
-                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-secondary" />
-              )}
             </Link>
           ))}
         </div>
 
-        {/* Desktop Auth */}
+        {/* Desktop Auth Section */}
         <div className="hidden md:flex items-center gap-3">
           {isPending ? (
-            <div className="w-24 h-9 animate-pulse bg-slate-200/40 rounded-xl" />
+            <div className="w-9 h-9 animate-pulse bg-slate-200 rounded-full" />
           ) : user ? (
-            <div className="relative" ref={dropdownRef}>
-              {/* Profile Avatar Trigger */}
-              <button
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-100/10 focus:outline-none focus:ring-2 focus:ring-secondary/40 transition-all cursor-pointer"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={user.image || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(user.name || 'User')}`}
-                  alt={user.name}
-                  className="w-9 h-9 rounded-full border-2 border-secondary object-cover"
-                />
-              </button>
-
-              {/* Profile Dropdown Modal */}
-              <AnimatePresence>
-                {dropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2.5 w-64 bg-white border border-slate-200/80 rounded-2xl shadow-xl overflow-hidden py-2"
-                  >
-                    {/* Student Info */}
-                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                      <p className="text-sm font-bold text-primary truncate">{user.name}</p>
-                      <p className="text-xs text-muted truncate mt-0.5">{user.email}</p>
-                    </div>
-
-                    {/* Navigation Links */}
-                    <div className="p-1.5 space-y-0.5">
-                      <Link
-                        href="/profile"
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-primary/80 hover:text-secondary hover:bg-secondary/8 rounded-xl font-medium transition-colors"
-                      >
-                        <FiUser className="w-4 h-4" />
-                        Student Profile Page
-                      </Link>
-                      <Link
-                        href="/items/manage"
-                        className="flex items-center gap-2.5 px-3 py-2 text-sm text-primary/80 hover:text-secondary hover:bg-secondary/8 rounded-xl font-medium transition-colors"
-                      >
-                        <FiBookOpen className="w-4 h-4" />
-                        My Lessons Page
-                      </Link>
-                    </div>
-
-                    {/* Logout Button */}
-                    <div className="border-t border-slate-100 p-1.5">
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl font-semibold transition-colors cursor-pointer"
-                      >
-                        <FiLogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            /* Desktop User Profile Dropdown */
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="flex items-center gap-2 border border-slate-200 py-1.5 pr-4 pl-1.5 rounded-full cursor-pointer select-none hover:bg-slate-50 transition-colors">
+                <div className="w-8 h-8 rounded-full relative overflow-hidden shrink-0">
+                  <Image
+                    src={avatarSrc}
+                    alt="Profile"
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full"
+                    priority
+                  />
+                </div>
+                <span className="text-sm font-bold text-slate-700">{firstName}</span>
+              </label>
+              <ul tabIndex={0} className="dropdown-content menu p-2 shadow-xl bg-white border border-slate-100 rounded-2xl w-60 mt-3 z-50">
+                <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/50 rounded-t-xl mb-1">
+                  <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                </div>
+                <li>
+                  <Link href="/profile" className="flex items-center gap-2 font-semibold text-slate-600 py-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl">
+                    <FiUser className="w-4 h-4" /> Profile
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/items/manage" className="flex items-center gap-2 font-semibold text-slate-600 py-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl">
+                    <FiBookOpen className="w-4 h-4" /> Manage Lessons
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-slate-600 py-2 hover:bg-indigo-50 hover:text-indigo-600 rounded-xl">
+                    <FiSliders className="w-4 h-4" /> Dashboard
+                  </Link>
+                </li>
+                <div className="border-t border-slate-100 mt-1 pt-1">
+                  <li>
+                    <button onClick={handleLogout} className="flex items-center gap-2 font-bold text-red-600 py-2 hover:bg-red-50 rounded-xl w-full text-left">
+                      <FiLogOut className="w-4 h-4" /> Logout
+                    </button>
+                  </li>
+                </div>
+              </ul>
             </div>
           ) : (
-            <>
-              <Link
-                href="/login"
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all duration-200 ${
-                  scrolled
-                    ? 'text-primary/80 hover:text-secondary'
-                    : 'text-white/90 hover:text-white'
-                }`}
-              >
+            /* Desktop Unauthenticated Buttons */
+            <div className="flex items-center gap-3">
+              <Link href="/login" className="py-2 px-5 text-sm font-bold text-indigo-600 bg-indigo-50/5 border border-indigo-600/10 hover:border-indigo-600/20 hover:bg-indigo-50/20 transition-all rounded-none text-center min-w-[90px]">
                 Log In
               </Link>
               <Link href="/register">
-                <Button variant="primary" className="py-2.5 px-5 text-sm">
+                <button className="py-2 px-6 text-sm font-bold bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 hover:opacity-90 text-white rounded-none transition-all duration-200 shadow-md shadow-indigo-600/10 cursor-pointer border border-transparent">
                   Get Started
-                </Button>
+                </button>
               </Link>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Mobile Hamburger */}
-        <button
-          onClick={() => setMobileOpen((v) => !v)}
-          className={`md:hidden p-2 rounded-xl transition-colors cursor-pointer ${scrolled ? 'text-primary' : 'text-white'}`}
-          aria-label="Toggle menu"
-        >
-          {mobileOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
-        </button>
-      </nav>
+        {/* Mobile View Section */}
+        <div className="flex items-center md:hidden">
+          {isPending ? (
+            <div className="w-9 h-9 animate-pulse bg-slate-200 rounded-full" />
+          ) : user ? (
+            /* Mobile Authenticated Dropdown (Replaces Hamburger) */
+            <div className="dropdown dropdown-end">
+              <label tabIndex={0} className="w-9 h-9 rounded-full relative overflow-hidden block border border-slate-200 cursor-pointer">
+                <Image src={avatarSrc} alt="Profile" width={36} height={36} className="object-cover w-full h-full" />
+              </label>
+              <ul tabIndex={0} className="dropdown-content menu p-3 shadow-2xl bg-white border border-slate-200/80 rounded-2xl w-72 mt-3 z-50 gap-1">
+                <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl mb-2">
+                  <div className="w-9 h-9 rounded-full relative border border-slate-200 overflow-hidden shrink-0">
+                    <Image src={avatarSrc} alt="Profile" width={36} height={36} />
+                  </div>
+                  <div className="truncate">
+                    <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                  </div>
+                </div>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden overflow-hidden bg-white border-b border-slate-200"
-          >
-            <div className="px-4 pt-2 pb-6 space-y-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`flex items-center gap-2.5 px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
-                    pathname === link.href
-                      ? 'text-secondary bg-secondary/8'
-                      : 'text-primary/70 hover:text-secondary hover:bg-secondary/5'
-                  }`}
-                >
-                  <link.icon className="w-4 h-4" />
-                  {link.label}
-                </Link>
-              ))}
-              <div className="pt-3 border-t border-slate-100 mt-2 space-y-2">
-                {user ? (
-                  <>
-                    <div className="flex items-center gap-3 px-4 py-2 mb-2">
-                      <img 
-                        src={user.image || `https://api.dicebear.com/9.x/avataaars/svg?seed=${encodeURIComponent(user.name || 'User')}`} 
-                        alt={user.name} 
-                        className="w-10 h-10 rounded-full border-2 border-secondary object-cover" 
-                      />
-                      <div>
-                        <p className="text-sm font-bold text-primary">{user.name}</p>
-                        <p className="text-xs text-muted mt-0.5">{user.email}</p>
-                      </div>
-                    </div>
+                {/* Logged in Navigation Links inside Mobile Menu */}
+                {navLinks.map((link) => (
+                  <li key={link.href}>
                     <Link
-                      href="/profile"
-                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary/80 hover:bg-slate-50 rounded-xl"
+                      href={link.href}
+                      className={`flex items-center gap-2.5 py-2.5 rounded-xl text-sm font-semibold ${
+                        pathname === link.href ? 'bg-indigo-50 text-indigo-600' : 'text-slate-600'
+                      }`}
                     >
-                      <FiUser className="w-4 h-4" />
-                      Student Profile
+                      <link.icon className="w-4 h-4" /> {link.label}
                     </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <FiLogOut className="w-4 h-4" />
-                      Sign Out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link href="/login" className="block text-center px-4 py-3 rounded-xl text-sm font-semibold text-primary/85 hover:bg-slate-100 transition-colors">
-                      Log In
+                  </li>
+                ))}
+
+                <div className="border-t border-slate-100 mt-2 pt-2">
+                  <li>
+                    <Link href="/profile" className="flex items-center gap-2.5 py-2.5 text-slate-600 font-semibold rounded-xl"><FiUser className="w-4 h-4" /> Profile</Link>
+                  </li>
+                  <li>
+                    <Link href="/items/manage" className="flex items-center gap-2.5 py-2.5 text-slate-600 font-semibold rounded-xl"><FiBookOpen className="w-4 h-4" /> Manage Lessons</Link>
+                  </li>
+                  <li>
+                    <Link href="/dashboard" className="flex items-center gap-2.5 py-2.5 text-slate-600 font-semibold rounded-xl"><FiSliders className="w-4 h-4" /> Dashboard</Link>
+                  </li>
+                  <li>
+                    <button onClick={handleLogout} className="flex items-center gap-2.5 py-2.5 text-red-500 font-bold hover:bg-red-50 rounded-xl w-full text-left"><FiLogOut className="w-4 h-4" /> Sign Out</button>
+                  </li>
+                </div>
+              </ul>
+            </div>
+          ) : (
+            /* Mobile Unauthenticated State (Shows only Log In on Header + Register in Menu) */
+            <div className="flex items-center gap-2">
+              <Link href="/login" className="py-2 px-4 text-sm font-inter font-bold uppercase text-indigo-600 bg-transparent border border-indigo-600/10 transition-all">
+                Log In
+              </Link>
+              
+              <div className="dropdown dropdown-end">
+                <label tabIndex={0} className="btn btn-ghost btn-circle text-slate-700">
+                  <FiMenu className="w-6 h-6" />
+                </label>
+                <ul tabIndex={0} className="dropdown-content menu p-3 shadow-2xl bg-white border border-slate-200/80 rounded-2xl w-64 mt-3 z-50 gap-1">
+                  {navLinks.map((link) => (
+                    <li key={link.href}>
+                      <Link href={link.href} className="flex items-center gap-2.5 py-2.5 text-slate-600 font-semibold rounded-xl">
+                        <link.icon className="w-4 h-4" /> {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                  <div className="border-t border-slate-100 mt-2 pt-2">
+                    <Link href="/register" className="w-full">
+                      <button className="w-full text-sm py-2.5 font-bold bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white rounded-xl border border-transparent shadow-md cursor-pointer">
+                        Register Now
+                      </button>
                     </Link>
-                    <Link href="/register" className="block">
-                      <Button variant="primary" className="w-full text-sm py-3 font-bold">
-                        Get Started Free
-                      </Button>
-                    </Link>
-                  </>
-                )}
+                  </div>
+                </ul>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+
+      </div>
     </header>
   );
 }

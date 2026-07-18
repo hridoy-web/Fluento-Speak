@@ -1,203 +1,277 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
-import { FaUser, FaEnvelope, FaLock, FaImage, FaGoogle } from "react-icons/fa";
-// import Logo from "@/components/Logo";
-import { authClient } from "@/lib/auth-client";
+import { FiEye, FiEyeOff, FiUser, FiMail, FiLock, FiLoader, FiCheck } from "react-icons/fi";
+import { FcGoogle } from "react-icons/fc";
 import toast from "react-hot-toast";
+import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-    const router = useRouter()
+    const router = useRouter();
+    const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState("");
+    const [passwordInput, setPasswordInput] = useState("");
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // Real-time password validation
+    const validationRules = {
+        minLength: passwordInput.length >= 8,
+        hasUppercase: /[A-Z]/.test(passwordInput),
+        hasLowercase: /[a-z]/.test(passwordInput),
+        hasNumber: /[0-9]/.test(passwordInput),
+    };
 
-        // from data collect
-        const formData = new FormData(e.currentTarget);
-        const { name, email, image, password, role } = Object.fromEntries(formData.entries());
+    const isPasswordValid = 
+        validationRules.minLength && 
+        validationRules.hasUppercase && 
+        validationRules.hasLowercase && 
+        validationRules.hasNumber;
 
-        // password validation
-        if (password.length < 6) {
-            toast.error("Password must be at least 6 characters long!");
-            return;
-        }
+    // Show requirements only when user starts typing or focuses on the input
+    const shouldShowRequirements = isPasswordFocused || passwordInput.length > 0;
 
-        if (!/[A-Z]/.test(password)) {
-            toast.error("Password must include at least one uppercase letter!");
-            return;
-        }
-
-        if (!/[a-z]/.test(password)) {
-            toast.error("Password must include at least one lowercase letter!");
-            return;
-        }
-
-        // betterAuth setup
-        const { data, error } = await authClient.signUp.email({
-            name,
-            email,
-            image,
-            password,
-            role,
-        });
-        
-        if (error) {
-            toast.error(error?.message)
-            return;
-        } else {
-            toast.success('Registration Successful')
-            router.push('/')
+    const handleGoogleLogin = async () => {
+        setIsLoading(true);
+        setLoadingMessage("Connecting to Google...");
+        try {
+            await authClient.signIn.social({
+                provider: "google",
+                callbackURL: "/",
+            });
+        } catch (error) {
+            toast.error(error.message || "Google sign in failed");
+            setIsLoading(false);
         }
     };
 
-    const handleGoogleSignUp = () => {
-        console.log("Google Auth Triggered");
+    const handleRegister = async (e) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setLoadingMessage("Connecting to server...");
+
+        const formData = new FormData(e.currentTarget);
+        const { name, email, password } = Object.fromEntries(formData);
+
+        if (!name || !email || !password) {
+            toast.error('All fields are required');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!isPasswordValid) {
+            toast.error('Please fulfill all password requirements');
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const { data, error } = await authClient.signUp.email({
+                name,
+                email,
+                password
+            });
+
+            if (error) {
+                toast.error(error?.message);
+                setIsLoading(false);
+                return;
+            } else {
+                toast.success(`Registration Successful! Welcome ${data?.user?.name}`);
+                router.push('/');
+                router.refresh();
+            }
+        } catch (error) {
+            console.error('betterAuth Register page error', error);
+            toast.error(error.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-slate-950">
-            <div className="w-full max-w-md sm:max-w-lg border border-white/5 bg-slate-900/40 backdrop-blur-xl shadow-2xl rounded-2xl p-6 sm:p-10 transition-all duration-300">
+        <div className="min-h-[calc(100vh-4rem)] bg-[#fafafa] flex items-center justify-center p-6 sm:p-12 selection:bg-indigo-600 selection:text-white font-sans antialiased">
 
-                {/* header section */}
-                <div className="flex flex-col gap-1 items-center pb-6 text-center">
-                    {/* <Logo /> */}
-                    <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-pink-500 bg-clip-text text-transparent mt-3">
+            <div className="w-full max-w-md bg-white border border-slate-200/60 rounded-2xl p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] transition-all duration-300 hover:shadow-[0_4px_35px_rgba(0,0,0,0.04)]">
+                
+                {/* Section header typography */}
+                <div className="mb-8 text-center">
+                    <h2 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent mb-2">
                         Create an Account
-                    </h1>
-                    <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-xs sm:max-w-none">
-                        Join Ticketo to book premium events or host your own organization.
+                    </h2>
+                    <p className="text-sm text-slate-500 font-medium">
+                        Join us and elevate your communication skills
                     </p>
                 </div>
 
-                {/* from section */}
-                <form onSubmit={handleSubmit} className="space-y-4 w-full">
+                {/* Google Sign-in */}
+                <button
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={isLoading}
+                    className="w-full border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-bold py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 text-xs cursor-pointer"
+                >
+                    <FcGoogle className="w-5 h-5" />
+                    <span>Continue with Google</span>
+                </button>
 
+                {/* Clean Divider */}
+                <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-200/60"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-3 text-slate-400 font-bold tracking-wider text-[10px]">
+                            Or register with email
+                        </span>
+                    </div>
+                </div>
+
+                {/* Registration Form */}
+                <form onSubmit={handleRegister} className="space-y-4">
+                    
                     {/* Full Name */}
-                    <div className="form-control w-full">
-                        <label className="label py-1" htmlFor="name">
-                            <span className="label-text text-slate-300 text-xs sm:text-sm font-medium">Full Name</span>
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                            Full Name
                         </label>
-                        <div className="relative flex items-center">
-                            <FaUser className="absolute left-4 text-slate-400 text-sm pointer-events-none" />
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <FiUser className="w-4 h-4" />
+                            </span>
                             <input
-                                id="name"
-                                name="name"
                                 type="text"
+                                name="name"
+                                required
+                                disabled={isLoading}
                                 placeholder="John Doe"
-                                required
-                                autoComplete="name"
-                                className="input input-bordered h-11 sm:h-12 w-full pl-11 bg-slate-950/50 border-white/10 text-white text-sm focus:border-pink-500 focus:outline-none placeholder:text-slate-500"
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all disabled:opacity-60 font-semibold"
                             />
                         </div>
                     </div>
 
-                    {/* Email Address */}
-                    <div className="form-control w-full">
-                        <label className="label py-1" htmlFor="email">
-                            <span className="label-text text-slate-300 text-xs sm:text-sm font-medium">Email Address</span>
+                    {/* Email */}
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                            Email Address
                         </label>
-                        <div className="relative flex items-center">
-                            <FaEnvelope className="absolute left-4 text-slate-400 text-sm pointer-events-none" />
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <FiMail className="w-4 h-4" />
+                            </span>
                             <input
-                                id="email"
-                                name="email"
                                 type="email"
-                                placeholder="john@example.com"
+                                name="email"
                                 required
-                                autoComplete="email"
-                                className="input input-bordered h-11 sm:h-12 w-full pl-11 bg-slate-950/50 border-white/10 text-white text-sm focus:border-pink-500 focus:outline-none placeholder:text-slate-500"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Profile Image URL */}
-                    <div className="form-control w-full">
-                        <label className="label py-1" htmlFor="image">
-                            <span className="label-text text-slate-300 text-xs sm:text-sm font-medium">Profile Image URL</span>
-                        </label>
-                        <div className="relative flex items-center">
-                            <FaImage className="absolute left-4 text-slate-400 text-sm pointer-events-none" />
-                            <input
-                                id="image"
-                                name="image"
-                                type="url"
-                                placeholder="https://example.com/avatar.jpg"
-                                className="input input-bordered h-11 sm:h-12 w-full pl-11 bg-slate-950/50 border-white/10 text-white text-sm focus:border-pink-500 focus:outline-none placeholder:text-slate-500"
+                                disabled={isLoading}
+                                placeholder="you@example.com"
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all disabled:opacity-60 font-semibold"
                             />
                         </div>
                     </div>
 
                     {/* Password */}
-                    <div className="form-control w-full">
-                        <label className="label py-1" htmlFor="password">
-                            <span className="label-text text-slate-300 text-xs sm:text-sm font-medium">Password</span>
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-700 uppercase tracking-wider mb-1.5">
+                            Password
                         </label>
-                        <div className="relative flex items-center">
-                            <FaLock className="absolute left-4 text-slate-400 text-sm pointer-events-none" />
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <FiLock className="w-4 h-4" />
+                            </span>
                             <input
-                                id="password"
+                                type={showPassword ? "text" : "password"}
                                 name="password"
-                                type="password"
-                                placeholder="••••••••"
                                 required
-                                autoComplete="new-password"
-                                className="input input-bordered h-11 sm:h-12 w-full pl-11 bg-slate-950/50 border-white/10 text-white text-sm focus:border-pink-500 focus:outline-none placeholder:text-slate-500"
+                                disabled={isLoading}
+                                value={passwordInput}
+                                onChange={(e) => setPasswordInput(e.target.value)}
+                                onFocus={() => setIsPasswordFocused(true)}
+                                onBlur={() => setIsPasswordFocused(false)}
+                                placeholder="••••••••"
+                                className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all disabled:opacity-60 font-semibold"
                             />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                disabled={isLoading}
+                                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                            >
+                                {showPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                            </button>
                         </div>
-                    </div>
 
-                    {/* Select Role Dropdown */}
-                    <div className="form-control w-full">
-                        <label className="label py-1" htmlFor="role">
-                            <span className="label-text text-slate-300 text-xs sm:text-sm font-medium">Select Role</span>
-                        </label>
-                        <select
-                            id="role"
-                            name="role"
-                            defaultValue="attendee"
-                            className="select select-bordered h-11 sm:h-12 w-full bg-slate-950/50 border-white/10 text-white text-sm focus:border-pink-500 focus:outline-none"
-                        >
-                            <option value="attendee" className="bg-slate-950 text-white">
-                                Attendee
-                            </option>
-                            <option value="organizer" className="bg-slate-950 text-white">
-                                Organizer
-                            </option>
-                        </select>
+                        {/* Password Requirements Logic */}
+                        {shouldShowRequirements && (
+                            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 bg-[#fdfdfd] border border-slate-100 rounded-xl p-4 transition-all duration-300">
+                                
+                                {/* Requirement 1: Length */}
+                                <div className="flex items-center gap-2 text-xs font-medium">
+                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${validationRules.minLength ? "bg-indigo-50 border-indigo-500 text-indigo-600" : "border-slate-300 bg-white"}`}>
+                                        {validationRules.minLength && <FiCheck className="w-2.5 h-2.5 stroke-[3]" />}
+                                    </div>
+                                    <span className={validationRules.minLength ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                                        Min 8 characters
+                                    </span>
+                                </div>
+
+                                {/* Requirement 2: Uppercase */}
+                                <div className="flex items-center gap-2 text-xs font-medium">
+                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${validationRules.hasUppercase ? "bg-indigo-50 border-indigo-500 text-indigo-600" : "border-slate-300 bg-white"}`}>
+                                        {validationRules.hasUppercase && <FiCheck className="w-2.5 h-2.5 stroke-[3]" />}
+                                    </div>
+                                    <span className={validationRules.hasUppercase ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                                        One uppercase
+                                    </span>
+                                </div>
+
+                                {/* Requirement 3: Lowercase */}
+                                <div className="flex items-center gap-2 text-xs font-medium">
+                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${validationRules.hasLowercase ? "bg-indigo-50 border-indigo-500 text-indigo-600" : "border-slate-300 bg-white"}`}>
+                                        {validationRules.hasLowercase && <FiCheck className="w-2.5 h-2.5 stroke-[3]" />}
+                                    </div>
+                                    <span className={validationRules.hasLowercase ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                                        One lowercase
+                                    </span>
+                                </div>
+
+                                {/* Requirement 4: Number */}
+                                <div className="flex items-center gap-2 text-xs font-medium">
+                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${validationRules.hasNumber ? "bg-indigo-50 border-indigo-500 text-indigo-600" : "border-slate-300 bg-white"}`}>
+                                        {validationRules.hasNumber && <FiCheck className="w-2.5 h-2.5 stroke-[3]" />}
+                                    </div>
+                                    <span className={validationRules.hasNumber ? "text-slate-700 font-semibold" : "text-slate-400"}>
+                                        One number
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Submit Button */}
                     <button
                         type="submit"
-                        className="btn w-full bg-gradient-to-r from-pink-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white font-bold border-none normal-case h-11 sm:h-12 shadow-lg shadow-pink-500/10 mt-4 text-sm"
+                        disabled={isLoading}
+                        className="w-full bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 hover:opacity-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-md shadow-indigo-600/10 active:scale-[0.99] transition-all flex items-center justify-center gap-2 disabled:opacity-75 disabled:pointer-events-none mt-6 text-sm cursor-pointer"
                     >
-                        Create Account
+                        {isLoading ? (
+                            <>
+                                <FiLoader className="w-4 h-4 animate-spin text-white" />
+                                <span className="text-xs font-bold text-indigo-50">{loadingMessage}</span>
+                            </>
+                        ) : (
+                            "Create Account"
+                        )}
                     </button>
                 </form>
 
-                {/* Divider */}
-                <div className="flex items-center my-5">
-                    <div className="flex-grow border-t border-white/5" />
-                    <span className="mx-4 text-[10px] sm:text-xs text-slate-500 font-semibold uppercase tracking-wider whitespace-nowrap">Or Sign Up With</span>
-                    <div className="flex-grow border-t border-white/5" />
-                </div>
-
-                {/* Google OAuth Button */}
-                <button
-                    onClick={handleGoogleSignUp}
-                    type="button"
-                    className="btn btn-bordered w-full bg-transparent border border-white/10 text-white hover:bg-white/5 hover:border-white/20 normal-case font-semibold h-11 gap-2 text-sm"
-                >
-                    <FaGoogle className="text-pink-500" />
-                    Google OAuth
-                </button>
-
-                {/* Bottom Link */}
-                <p className="text-center text-xs sm:text-sm text-slate-400 mt-6">
+                {/* Footer Link */}
+                <p className="text-center text-xs text-slate-500 font-medium mt-6">
                     Already have an account?{" "}
-                    <Link href="/login" className="text-pink-500 hover:text-pink-400 font-semibold hover:underline transition-colors">
-                        Log In
+                    <Link href="/login" className="font-bold text-indigo-600 hover:underline">
+                        Sign In
                     </Link>
                 </p>
             </div>

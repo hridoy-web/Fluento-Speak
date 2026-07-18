@@ -3,12 +3,12 @@ import { authClient } from "@/lib/auth-client";
 const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000/api";
 
 async function getAuthHeaders() {
-  const { data: session } = await authClient.getSession();
+  const { data } = await authClient.getSession();
   const headers = {
     "Content-Type": "application/json",
   };
-  if (session?.token) {
-    headers["Authorization"] = `Bearer ${session.token}`;
+  if (data?.session?.token) {
+    headers["Authorization"] = `Bearer ${data.session.token}`;
   }
   return headers;
 }

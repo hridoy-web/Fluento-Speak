@@ -1,60 +1,12 @@
 @import "tailwindcss";
+@plugin "daisyui";
 
 @theme {
-  --color-primary: #0F172A;
-  --color-primary-light: #1E293B;
-  --color-primary-dark: #020617;
-  --color-secondary: #0D9488;
-  --color-secondary-light: #14B8A6;
-  --color-secondary-dark: #0F766E;
-  --color-accent: #6366F1;
-  --color-accent-light: #818CF8;
-  --color-accent-dark: #4F46E5;
-  --color-surface: #F8FAFC;
-  --color-muted: #94A3B8;
-  --color-border: #E2E8F0;
-  
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  
-  --shadow-card: 0 4px 24px rgba(15, 23, 42, 0.07);
-  --shadow-card-hover: 0 12px 40px rgba(15, 23, 42, 0.14);
-  --shadow-glow: 0 0 30px rgba(13, 148, 136, 0.25);
-  --shadow-glow-accent: 0 0 30px rgba(99, 102, 241, 0.25);
-  --shadow-glass: 0 8px 32px rgba(15, 23, 42, 0.12);
-
-  --animate-fade-in-up: fadeInUp 0.7s ease forwards;
-  --animate-float: float 4s ease-in-out infinite;
-  --animate-shimmer: shimmer 1.6s infinite;
-  --animate-pulse-glow: pulseGlow 2.4s ease-in-out infinite;
-  --animate-spin-slow: spin 8s linear infinite;
-
-  @keyframes fadeInUp {
-    0% { opacity: 0; transform: translateY(28px); }
-    100% { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-14px); }
-  }
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-  }
-  @keyframes pulseGlow {
-    0%, 100% { box-shadow: 0 0 20px rgba(13, 148, 136, 0.3); }
-    50% { box-shadow: 0 0 50px rgba(13, 148, 136, 0.65); }
-  }
 }
 
 html {
   scroll-behavior: smooth;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #F1F5F9; }
-::-webkit-scrollbar-thumb {
-  background: var(--color-secondary);
-  border-radius: 10px;
-}
-::-webkit-scrollbar-thumb:hover { background: var(--color-secondary-dark); }

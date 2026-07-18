@@ -11,5 +11,19 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
   },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || "placeholder-google-client-id",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "placeholder-google-client-secret"
+    }
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        defaultValue: "student",
+      },
+    }
+  },
   secret: process.env.BETTER_AUTH_SECRET,
 });

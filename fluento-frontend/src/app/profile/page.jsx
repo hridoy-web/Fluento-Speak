@@ -19,7 +19,7 @@ export default function ProfilePage() {
 
   if (isPending) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center pt-16">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center pt-16">
         <div className="w-10 h-10 border-4 border-secondary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -50,7 +50,7 @@ export default function ProfilePage() {
     : 'N/A';
 
   return (
-    <div className="min-h-screen bg-surface pt-24 pb-16">
+    <div className="min-h-screen bg-slate-50 pt-24 pb-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Banner */}

@@ -27,10 +27,14 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="font-sans antialiased bg-surface text-primary">
+      <body className="font-sans antialiased bg-slate-50 text-slate-800">
         <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         <Navbar />
-        <main>{children}</main>
+
+        <main className='grow'>
+          {children}
+        </main>
+
         <Footer />
       </body>
     </html>
