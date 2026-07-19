@@ -236,17 +236,16 @@ app.get('/api/lessons/:id', async (req, res, next) => {
 /** 4. Upload API (Add Lesson) Protected **/
 app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   try {
-    console.log('Incoming POST /api/lessons body:', req.body);
-    const { title, shortDescription, fullDescription, category, difficulty, price, imageUrl, imageUrls } = req.body;
+    
+    const { title, shortDescription, fullDescription, category, difficulty, imageUrl, imageUrls, role, author, profileImage } = req.body;
 
-    if (!title || !shortDescription || !fullDescription || !category || !difficulty) {
+    if (!title || !shortDescription || !fullDescription || !category || !difficulty || !imageUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Bad Request: Title, shortDescription, fullDescription, category, and difficulty are required fields.'
+        message: 'Bad Request: Title, shortDescription, fullDescription, category, difficulty, and imageUrl are required fields.'
       });
     }
 
-    const priceNum = price ? parseFloat(price) : 0;
     const resolvedImageUrl = imageUrl || (imageUrls && imageUrls[0]) || '';
     const resolvedImageUrls = imageUrls || (imageUrl ? [imageUrl] : []);
 
@@ -256,13 +255,18 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
       fullDescription: fullDescription.trim(),
       category: category.trim(),
       difficulty: difficulty.trim(),
-      price: isNaN(priceNum) ? 0 : priceNum,
-      rating: 5,
+      
+      // Future-proof rating architecture (starts at 0)
+      rating: 0, 
+      totalRatings: 0,
+      ratingSum: 0,
+
       imageUrl: resolvedImageUrl,
       imageUrls: resolvedImageUrls,
       name: req.user.name,
-      profileImage: req.user.image || '',
-      author: req.body.author || req.user.name,
+      profileImage: profileImage || req.user.image || '',
+      author: author || req.user.name,
+      role: role || 'Student', 
       userId: req.user._id,
       createdAt: new Date(),
       updatedAt: new Date()
