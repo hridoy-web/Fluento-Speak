@@ -207,7 +207,29 @@ app.get('/api/lessons', async (req, res, next) => {
   }
 });
 
-/*** 3. Single Lessons Details API ***/
+/** 3. Homepage Latest Lessons **/
+app.get('/api/lessons/latest-home', async (req, res, next) => {
+  try {
+    const latestLessons = await db.collection('lessons')
+      .find({})
+      .sort({ createdAt: -1 }) 
+      .limit(4)               
+      .toArray();
+
+    res.json({
+      success: true,
+      data: latestLessons
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch latest home data", 
+      error: err.message 
+    });
+  }
+});
+
+/*** 4. Single Lessons Details API ***/
 app.get('/api/lessons/:id', async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -233,7 +255,7 @@ app.get('/api/lessons/:id', async (req, res, next) => {
   }
 });
 
-/** 4. Upload API (Add Lesson) Protected **/
+/** 5. Upload API (Add Lesson) Protected **/
 app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   try {
     
@@ -287,7 +309,7 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 5. My Lesson Edit Update **/
+/** 6. My Lesson Edit Update **/
 app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -341,7 +363,7 @@ app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 6. Delete Lesson **/
+/** 7. Delete Lesson **/
 app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   try {
     const id = req.params.id;

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { apiActions } from "@/lib/apiActions";
-import { uploadImage } from "@/lib/uploadImage"; // ImgBB Image Uploader Integration
+import { uploadImage } from "@/lib/uploadImage";
 import {
   FiBookOpen,
   FiActivity,

@@ -24,6 +24,20 @@ export const apiActions = {
     return response.json();
   },
 
+  /** Homepage Latest 4 Lessons **/
+  getLatestHomeLessons: async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/lessons/latest-home`, {
+        method: "GET",
+        cache: "no-store", 
+      });
+      return response.json();
+    } catch (error) {
+      console.error("Error in getLatestHomeLessons action:", error);
+      return { success: false, data: [] };
+    }
+  },
+
   /** 2. Public Lesson Details **/
   getLessonDetails: async (id) => {
     const response = await fetch(`${BASE_URL}/lessons/${id}`, {
