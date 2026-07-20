@@ -1,6 +1,8 @@
+"import { Suspense } from 'react';" 
+
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiActions } from "@/lib/apiActions";
 import { FiSearch, FiBookOpen, FiChevronLeft, FiChevronRight, FiSliders, FiBarChart2 } from "react-icons/fi";
@@ -38,7 +40,7 @@ function LessonCardSkeleton() {
   );
 }
 
-export default function ExplorePage() {
+function ExploreContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -137,7 +139,7 @@ export default function ExplorePage() {
             />
           </form>
 
-          {/* Middle Side: Inline Category Tabs (Horizontal Scrollable Pills) */}
+          {/* Middle Side: Inline Category Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full xl:w-auto py-1 justify-start xl:justify-center">
             {CATEGORIES.map((cat) => (
               <button
@@ -154,8 +156,8 @@ export default function ExplorePage() {
             ))}
           </div>
 
-          {/* Right Side: Dropdown Caps (Difficulty & Sort) */}
-          <div className="flex items-center justify-center gap-2 w-full xl:w-auto  flex-shrink-0">
+          {/* Right Side: Dropdown Caps */}
+          <div className="flex items-center justify-center gap-2 w-full xl:w-auto flex-shrink-0">
             
             {/* Compact Difficulty Dropdown */}
             <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded px-2.5 py-1.5 hover:border-slate-300 transition-all">
@@ -235,5 +237,17 @@ export default function ExplorePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ExplorePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+        <p className="text-xs font-bold text-slate-400 animate-pulse">Loading Explore...</p>
+      </div>
+    }>
+      <ExploreContent />
+    </Suspense>
   );
 }
