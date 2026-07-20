@@ -14,7 +14,9 @@ import {
   FiActivity, 
   FiImage, 
   FiPlusCircle,
-  FiUploadCloud
+  FiUploadCloud,
+  FiCpu,
+  FiLoader
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -24,6 +26,7 @@ export default function AddLessonPage() {
   
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const categories = [
     "Freelancing English", 
@@ -47,6 +50,56 @@ export default function AddLessonPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // AI Content Auto-Fill Handler
+  const handleAIGenerate = async () => {
+    if (!formData.title || formData.title.trim().length < 3) {
+      toast.error("Please enter a short topic or title in the Lesson Title field first!");
+      return;
+    }
+
+    setAiGenerating(true);
+    const toastId = toast.loading("Fluento AI is drafting your lesson...");
+
+    try {
+      const res = await apiActions.generateLessonWithAI(formData.title);
+
+      if (res && res.success && res.data) {
+        const aiData = res.data;
+        
+        // Match category with frontend existing categories or fallback
+        const matchedCategory = categories.find(
+          (c) => c.toLowerCase().includes(aiData.category?.toLowerCase()) || aiData.category?.toLowerCase().includes(c.toLowerCase())
+        ) || categories[0];
+
+        setFormData((prev) => ({
+          ...prev,
+          title: aiData.title || prev.title,
+          shortDescription: aiData.shortDescription || prev.shortDescription,
+          fullDescription: aiData.fullDescription || prev.fullDescription,
+          category: matchedCategory,
+          difficulty: ["Beginner", "Intermediate", "Advanced"].includes(aiData.difficulty) 
+            ? aiData.difficulty 
+            : "Beginner",
+        }));
+
+        toast.success("Lesson generated successfully with Fluento AI!", { id: toastId });
+      } else {
+        toast.error(res?.message || "AI failed to generate lesson.", { id: toastId });
+      }
+    } catch (error) {
+      console.error("AI Generation Error:", error);
+      // Extract backend error message 
+      const backendMessage = 
+        error?.response?.data?.message || 
+        error?.message || 
+        "An error occurred while connecting to Fluento AI.";
+      
+      toast.error(backendMessage, { id: toastId });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   // Upload thumbnail to ImgBB
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -61,7 +114,8 @@ export default function AddLessonPage() {
       }
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload image.");
+      const backendMessage = error?.response?.data?.message || "Failed to upload image.";
+      toast.error(backendMessage);
     } finally {
       setUploadingImage(false);
     }
@@ -94,11 +148,12 @@ export default function AddLessonPage() {
         toast.success(res.message || "Lesson published successfully!");
         router.push("/explore");
       } else {
-        toast.error(res.message || "Failed to create lesson.");
+        toast.error(res?.message || "Failed to create lesson.");
       }
     } catch (error) {
       console.error("Submission error:", error);
-      toast.error("An error occurred while creating the lesson.");
+      const backendMessage = error?.response?.data?.message || "An error occurred while creating the lesson.";
+      toast.error(backendMessage);
     } finally {
       setLoading(false);
     }
@@ -132,29 +187,53 @@ export default function AddLessonPage() {
             </p>
           </div>
 
-          <div className="h-px bg-linear-to-r from-slate-200 via-slate-100 to-transparent" />
+          <div className="h-px bg-gradient-to-r from-slate-200 via-slate-100 to-transparent" />
 
           {/* Form container entrypoint */}
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Title container */}
+            {/* Title container with AI Auto-Fill Action */}
             <div className="space-y-2">
-              <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 tracking-wide uppercase">
-                <FiBookOpen className="w-3.5 h-3.5 text-slate-400" />
-                <span>Lesson Title <span className="text-rose-500">*</span></span>
-              </label>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-700 tracking-wide uppercase">
+                  <FiBookOpen className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Topic / Lesson Title <span className="text-rose-500">*</span></span>
+                </label>
+
+                {/* Magic AI Button */}
+                <button
+                  type="button"
+                  onClick={handleAIGenerate}
+                  disabled={aiGenerating || loading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-[11px] font-bold rounded shadow-xs active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                  title="Enter a topic title and click to auto-fill the entire lesson content using AI"
+                >
+                  {aiGenerating ? (
+                    <>
+                      <FiLoader className="w-3 h-3 animate-spin" />
+                      <span>Generating Lesson...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCpu className="w-3 h-3" />
+                      <span>✨ Auto-Fill with AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
               <input
                 type="text"
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                placeholder="e.g., Mastering Idioms for Professional Workplaces"
+                placeholder="e.g., Job Interview Questions or Business Email Writing"
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20 transition-all"
                 required
               />
             </div>
 
-            {/* Layout metadata segmentation selectors */}
+            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               
               {/* Category selections */}
@@ -269,7 +348,7 @@ export default function AddLessonPage() {
                 name="fullDescription"
                 value={formData.fullDescription}
                 onChange={handleChange}
-                rows={6}
+                rows={7}
                 placeholder="Draft curriculum blueprints, technical markdown text notes, rules, explanations or explicit exercise lists here..."
                 className="w-full px-4 py-3 bg-white border border-slate-200 rounded text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-hidden focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600/20 transition-all resize-y"
                 required
@@ -282,7 +361,7 @@ export default function AddLessonPage() {
             <div className="flex items-center justify-end">
               <button
                 type="submit"
-                disabled={loading || uploadingImage}
+                disabled={loading || uploadingImage || aiGenerating}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-bold rounded shadow-xs active:scale-[0.99] transition-all disabled:pointer-events-none cursor-pointer tracking-wider uppercase"
               >
                 <FiPlusCircle className="w-3.5 h-3.5" />

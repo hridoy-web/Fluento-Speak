@@ -1,6 +1,7 @@
 import { authClient } from "@/lib/auth-client";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000/api";
+// BASE_URL 
+const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
 async function getAuthHeaders() {
   const { data } = await authClient.getSession();
@@ -13,51 +14,62 @@ async function getAuthHeaders() {
   return headers;
 }
 
+// Helper to handle both JSON and non-JSON responses safely
+async function handleResponse(response) {
+  const contentType = response.headers.get("content-type");
+  
+  if (contentType && contentType.includes("application/json")) {
+    return await response.json();
+  } else {
+    const text = await response.text();
+    console.error("Non-JSON Server Response:", text);
+    return {
+      success: false,
+      message: `Server Connection Error (${response.status}). Check backend route URL.`,
+    };
+  }
+}
+
 export const apiActions = {
-  /** 1. Explore / Home / Filters API **/
   getAllLessons: async (queryParams = {}) => {
     const queryString = new URLSearchParams(queryParams).toString();
     const response = await fetch(`${BASE_URL}/lessons?${queryString}`, {
       method: "GET",
       cache: "no-store",
     });
-    return response.json();
+    return handleResponse(response);
   },
 
-  /** Homepage Latest 4 Lessons **/
   getLatestHomeLessons: async () => {
     try {
       const response = await fetch(`${BASE_URL}/lessons/latest-home`, {
         method: "GET",
         cache: "no-store", 
       });
-      return response.json();
+      return handleResponse(response);
     } catch (error) {
       console.error("Error in getLatestHomeLessons action:", error);
       return { success: false, data: [] };
     }
   },
 
-  /** 2. Public Lesson Details **/
   getLessonDetails: async (id) => {
     const response = await fetch(`${BASE_URL}/lessons/${id}`, {
       method: "GET",
       cache: "no-store",
     });
-    return response.json();
+    return handleResponse(response);
   },
 
-  /** 3. My Lessons Workspace (Protected Student Route) **/
   getMyLessons: async () => {
     const headers = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/lessons/my-lessons`, {
       method: "GET",
       headers,
     });
-    return response.json();
+    return handleResponse(response);
   },
 
-  /** 4. Add New Lesson (Protected) **/
   addLesson: async (lessonData) => {
     const headers = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/lessons`, {
@@ -65,10 +77,9 @@ export const apiActions = {
       headers,
       body: JSON.stringify(lessonData),
     });
-    return response.json();
+    return handleResponse(response);
   },
 
-  /** 5. Update Existing Lesson (Protected - Owner Only) **/
   updateLesson: async (id, updatedData) => {
     const headers = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/lessons/${id}`, {
@@ -76,38 +87,35 @@ export const apiActions = {
       headers,
       body: JSON.stringify(updatedData),
     });
-    return response.json();
+    return handleResponse(response);
   },
 
-  /** 6. Delete Lesson (Protected - Owner Only) **/
   deleteLesson: async (id) => {
     const headers = await getAuthHeaders();
     const response = await fetch(`${BASE_URL}/lessons/${id}`, {
       method: "DELETE",
       headers,
     });
-    return response.json();
+    return handleResponse(response);
   },
 
-
-  // AI Content Generator (AI English Lesson Creator)
-  generateAILesson: async (lessonParams) => {
+  generateLessonWithAI: async (topic) => {
     try {
-      const headers = await getAuthHeaders();
       const response = await fetch(`${BASE_URL}/ai/generate-lesson`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(lessonParams),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ topic }),
       });
-      return response.json();
+
+      return await handleResponse(response);
     } catch (error) {
-      console.error("Error in generateAILesson action:", error);
-      return { success: false, message: "Failed to connect to AI Generator Service." };
+      console.error('AI Generation API Error:', error);
+      return { success: false, message: 'Server connection failed.' };
     }
   },
 
-
-  // AI Chat Assistant (Context-Aware Language Partner)
   sendMessageToAIChat: async (chatPayload) => {
     try {
       const headers = await getAuthHeaders();
@@ -116,7 +124,7 @@ export const apiActions = {
         headers,
         body: JSON.stringify(chatPayload), 
       });
-      return response.json();
+      return await handleResponse(response);
     } catch (error) {
       console.error("Error in sendMessageToAIChat action:", error);
       return { success: false, message: "Failed to connect to AI Chat Partner Service." };

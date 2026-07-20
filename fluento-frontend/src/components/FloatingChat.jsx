@@ -24,7 +24,6 @@ export default function FloatingChat() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
   const chatEndRef = useRef(null);
 
   // Chamfer Cut Corner Styles
@@ -46,7 +45,6 @@ export default function FloatingChat() {
     setMessages(updatedMessages);
     setInput('');
     setIsLoading(true);
-    setHasError(false);
 
     try {
       const data = await apiActions.sendMessageToAIChat({
@@ -57,18 +55,25 @@ export default function FloatingChat() {
       if (data?.success && data?.reply) {
         setMessages((prev) => [...prev, { role: 'model', text: data.reply }]);
       } else {
-        throw new Error(data?.message || 'AI Core unreachable');
+        // dynamic rate limit or server message
+        const backendMessage = data?.message || 'AI Core unreachable';
+        throw new Error(backendMessage);
       }
     } catch (error) {
       console.error("Chat Agent Error:", error);
-      setHasError(true);
       
+      // Extract dynamic backend message 
+      const dynamicErrorMsg = 
+        error?.response?.data?.message || 
+        error?.message || 
+        '⚠️ [SYSTEM ALERT]: Connection to AI Core was interrupted.';
+
       setMessages((prev) => [
         ...prev, 
         { 
           role: 'model', 
           isError: true,
-          text: '⚠️ [SYSTEM ALERT]: Connection to AI Core was interrupted.\n\nদুঃখিত, সংযোগে কিছুটা সমস্যা হচ্ছে! দয়া করে নিচে "Try Again" বাটনে ক্লিক করুন।' 
+          text: `⚠️ [LIMIT ALERT]\n\n${dynamicErrorMsg}` 
         }
       ]);
     } finally {
@@ -90,7 +95,7 @@ export default function FloatingChat() {
   return (
     <div className="fixed bottom-6 right-6 z-50 font-mono antialiased select-none">
       
-      {/* Sci-Fi Modern Trigger Button */}
+     
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={cutCornerBtn}
@@ -102,14 +107,13 @@ export default function FloatingChat() {
           <FiX className="text-2xl text-white group-hover:rotate-90 transition-transform duration-300" />
         ) : (
           <div className="relative flex items-center justify-center">
-            {/* Modern Clean AI Sparkle Icon */}
             <HiSparkles className="text-2xl text-white group-hover:scale-110 transition-transform duration-300 animate-pulse" />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-purple-700 animate-ping" />
           </div>
         )}
       </button>
 
-      {/* Futuristic Light Sci-Fi Chat Panel */}
+      {/* Panel */}
       {isOpen && (
         <div 
           style={cutCornerBox}
@@ -119,10 +123,9 @@ export default function FloatingChat() {
               : 'w-[88vw] md:w-[390px] h-[520px]'
           }`}
         >
-          {/* Header - Brand Purple HUD */}
+          {/* Header */}
           <div className="bg-gradient-to-r from-purple-800 via-indigo-700 to-violet-800 p-3.5 text-white flex items-center justify-between relative shadow-md">
             <div className="flex items-center gap-3">
-             
               <div className="relative p-2 bg-white/10 border border-white/20 shadow-inner flex items-center justify-center backdrop-blur-md" style={cutCornerBtn}>
                 <RiBrainLine className="text-purple-200 text-xl animate-pulse" />
               </div>
@@ -169,17 +172,16 @@ export default function FloatingChat() {
                     msg.role === 'user' 
                       ? 'bg-purple-700 border-purple-800 text-white shadow-sm font-sans' 
                       : msg.isError
-                      ? 'bg-rose-50 border-rose-300 text-rose-900 font-sans'
+                      ? 'bg-amber-50 border-amber-300 text-amber-900 font-sans shadow-sm'
                       : 'bg-white border-purple-200 text-slate-800 shadow-sm font-sans'
                   }`}
                 >
-                  {/* System/User Sub-header */}
                   <div className="text-[9px] font-mono tracking-wider uppercase mb-1 font-bold opacity-80 flex items-center gap-1">
                     {msg.role === 'user' ? (
                       <span className="text-purple-200">&gt; USER_CMD</span>
                     ) : msg.isError ? (
-                      <span className="text-rose-600 flex items-center gap-1">
-                        <FiAlertCircle /> SYS_ERR
+                      <span className="text-amber-700 flex items-center gap-1 font-mono font-bold">
+                        <FiAlertCircle /> RATE_LIMIT_REACHED
                       </span>
                     ) : (
                       <span className="text-purple-700 flex items-center gap-1">
@@ -192,12 +194,11 @@ export default function FloatingChat() {
                     {msg.text}
                   </div>
 
-                  {/* Retry Button on Error */}
                   {msg.isError && (
                     <button
                       onClick={handleRetry}
                       style={cutCornerBtn}
-                      className="mt-2.5 px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-mono flex items-center gap-1.5 transition-all shadow-sm"
+                      className="mt-2.5 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-mono flex items-center gap-1.5 transition-all shadow-sm"
                     >
                       <FiRefreshCw size={11} />
                       <span>RETRY_CMD</span>
@@ -207,7 +208,6 @@ export default function FloatingChat() {
               </div>
             ))}
             
-            {/* Sci-Fi Thinking Indicator */}
             {isLoading && (
               <div className="flex justify-start">
                 <div 

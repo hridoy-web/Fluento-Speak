@@ -3,29 +3,56 @@ const { Groq } = require('groq-sdk');
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
+
+// PROXY TRUST CONFIGURATION 
+app.set('trust proxy', 1);
 
 // MIDDLEWARES CONFIGURATION
-
-// Enable CORS with Credentials
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:3000'],
+  origin: [process.env.FRONTEND_URL || 'http://localhost:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Request body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Simple middleware
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
+});
+
+// RATE LIMITERS CONFIGURATION
+
+// AI Chat Partner:
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 30,
+  statusCode: 429,
+  message: {
+    success: false,
+    message: 'আপনি ১৫ মিনিটে সর্বোচ্চ ৩০টি চ্যাট মেসেজ পাঠাতে পারবেন। অনুগ্রহ করে কিছু সময় পর আবার চেষ্টা করুন।'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// AI Lesson Generator: 
+const lessonGenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 5, 
+  statusCode: 429,
+  message: {
+    success: false,
+    message: 'আপনি ১৫ মিনিটে সর্বোচ্চ ৫টি লেসন জেনারেট করতে পারবেন। ১৫ মিনিট পর আবার চেষ্টা করুন।'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // DATABASE CONNECTION & UTILITIES
@@ -38,19 +65,15 @@ const dbName = process.env.DB_NAME;
 async function connectDB() {
   try {
     client = new MongoClient(mongoUri);
-
     await client.connect();
     db = client.db(dbName);
-
     console.log(`Connected successfully to database: "${dbName}"`);
-
   } catch (err) {
     console.error('Failed to connect to database:', err);
     process.exit(1);
   }
 }
 
-// Utility to convert ID string to ObjectId safely or fallback to string
 function getQueryId(idStr) {
   try {
     return new ObjectId(idStr);
@@ -59,13 +82,53 @@ function getQueryId(idStr) {
   }
 }
 
-// Helper to sanitize regex special characters
 function escapeRegex(text) {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
 }
 
-// AUTHENTICATION MIDDLEWARE (BetterAuth)
+// MULTI GROQ API KEYS ROTATION SYSTEM
+const groqApiKeys = Object.keys(process.env)
+  .filter(key => key.startsWith('GROQ_API_KEY'))
+  .map(key => process.env[key])
+  .filter(Boolean);
 
+// Fallback to single GROQ_API_KEY if specific numbered keys aren't found
+if (groqApiKeys.length === 0 && process.env.GROQ_API_KEY) {
+  groqApiKeys.push(process.env.GROQ_API_KEY);
+}
+
+console.log(`Loaded ${groqApiKeys.length} Groq API Key(s) for Load-Balancing & Failover.`);
+
+let keyIndex = 0;
+
+// Function to get Groq Instance with Round-Robin Rotation
+function getGroqClient() {
+  if (groqApiKeys.length === 0) {
+    throw new Error("No Groq API Key found in environment variables!");
+  }
+  const apiKey = groqApiKeys[keyIndex];
+  keyIndex = (keyIndex + 1) % groqApiKeys.length; // Rotates to next key
+  return new Groq({ apiKey });
+}
+
+// Helper to execute Groq calls with Auto-Retry across all available API Keys
+async function executeGroqWithFallback(apiCallFunction) {
+  let lastError = null;
+  const totalKeys = groqApiKeys.length || 1;
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    try {
+      const groqInstance = getGroqClient();
+      return await apiCallFunction(groqInstance);
+    } catch (err) {
+      console.warn(`Groq API Key Attempt ${attempt + 1} Failed: ${err.message}. Retrying with next API Key...`);
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("All Groq API Keys failed or rate-limited.");
+}
+
+// AUTHENTICATION MIDDLEWARE
 async function authenticateUser(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
@@ -78,18 +141,15 @@ async function authenticateUser(req, res, next) {
       return res.status(500).json({ success: false, message: 'Database connection not initialized' });
     }
 
-    // 1. Find session in the database
     const session = await db.collection('session').findOne({ token });
     if (!session) {
       return res.status(401).json({ success: false, message: 'Unauthorized: Invalid session token' });
     }
 
-    // 2. Check session expiration
     if (new Date(session.expiresAt) < new Date()) {
       return res.status(401).json({ success: false, message: 'Unauthorized: Session has expired' });
     }
 
-    // 3. Find associated user (supporting string and ObjectId lookup)
     const user = await db.collection('user').findOne({
       $or: [
         { _id: session.userId },
@@ -101,7 +161,6 @@ async function authenticateUser(req, res, next) {
       return res.status(401).json({ success: false, message: 'Unauthorized: Associated user not found' });
     }
 
-    // Attach user information to request
     req.user = user;
     next();
   } catch (err) {
@@ -110,9 +169,9 @@ async function authenticateUser(req, res, next) {
   }
 }
 
-//  REST API ENDPOINTS
+// REST API ENDPOINTS
 
-/** 1. Get (My Lessons) logged-in student **/
+/** 1. Get (My Lessons) **/
 app.get('/api/lessons/my-lessons', authenticateUser, async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -130,13 +189,12 @@ app.get('/api/lessons/my-lessons', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 2. Listing All Lessons (pagination, filters, sorting & latest toggle) **/
+/** 2. Listing All Lessons **/
 app.get('/api/lessons', async (req, res, next) => {
   try {
     const query = {};
     const { search, category, difficulty, sortBy, order, page, limit } = req.query;
 
-    // 1. Search filter (title, shortDescription, fullDescription)
     if (search && search.trim() !== '') {
       const escapedSearch = escapeRegex(search.trim());
       const searchRegex = new RegExp(escapedSearch, 'i');
@@ -147,7 +205,6 @@ app.get('/api/lessons', async (req, res, next) => {
       ];
     }
 
-    // 2. Filtering on category, difficulty
     if (category && category.trim() !== '') {
       query.category = category.trim();
     }
@@ -155,7 +212,6 @@ app.get('/api/lessons', async (req, res, next) => {
       query.difficulty = difficulty.trim();
     }
 
-    // 3. Sorting options
     let sortOptions = {};
     const sortField = sortBy || 'date';
     const sortOrder = order === 'asc' ? 1 : -1;
@@ -170,13 +226,12 @@ app.get('/api/lessons', async (req, res, next) => {
       sortOptions[sortField] = sortOrder;
     }
 
-    // 4. Homepage / Latest toggle check (limit=latest gets the 4 most recent)
     let queryLimit = 8;
     let queryPage = 1;
 
     if (limit === 'latest') {
       queryLimit = 4;
-      sortOptions = { createdAt: -1 }; // Force newest first
+      sortOptions = { createdAt: -1 };
     } else {
       queryLimit = parseInt(limit, 10) || 8;
       queryPage = Math.max(1, parseInt(page, 10) || 1);
@@ -184,7 +239,6 @@ app.get('/api/lessons', async (req, res, next) => {
 
     const skipCount = (queryPage - 1) * queryLimit;
 
-    // Execute queries
     const totalDocs = await db.collection('lessons').countDocuments(query);
     const totalPages = Math.ceil(totalDocs / queryLimit) || 1;
 
@@ -230,7 +284,7 @@ app.get('/api/lessons/latest-home', async (req, res, next) => {
   }
 });
 
-/*** 4. Single Lessons Details API ***/
+/** 4. Single Lessons Details **/
 app.get('/api/lessons/:id', async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -256,16 +310,15 @@ app.get('/api/lessons/:id', async (req, res, next) => {
   }
 });
 
-/** . Upload API (Add Lesson) Protected **/
+/** 5. Upload API (Add Lesson) Protected **/
 app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   try {
-
     const { title, shortDescription, fullDescription, category, difficulty, imageUrl, imageUrls, role, author, profileImage } = req.body;
 
     if (!title || !shortDescription || !fullDescription || !category || !difficulty || !imageUrl) {
       return res.status(400).json({
         success: false,
-        message: 'Bad Request: Title, shortDescription, fullDescription, category, difficulty, and imageUrl are required fields.'
+        message: 'Bad Request: Missing required fields.'
       });
     }
 
@@ -278,12 +331,9 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
       fullDescription: fullDescription.trim(),
       category: category.trim(),
       difficulty: difficulty.trim(),
-
-      // Future-proof rating architecture (starts at 0)
       rating: 0,
       totalRatings: 0,
       ratingSum: 0,
-
       imageUrl: resolvedImageUrl,
       imageUrls: resolvedImageUrls,
       name: req.user.name,
@@ -310,7 +360,7 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 5. My Lesson Edit Update **/
+/** 6. Update Lesson **/
 app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -328,22 +378,13 @@ app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
     }
 
     if (existing.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to modify this lesson' });
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
     const updates = { ...req.body };
     delete updates.createdAt;
     delete updates._id;
     delete updates.userId;
-
-    if (updates.price !== undefined) {
-      const priceNum = parseFloat(updates.price);
-      updates.price = isNaN(priceNum) ? 0 : priceNum;
-    }
-    if (updates.rating !== undefined) {
-      const ratingNum = parseFloat(updates.rating);
-      updates.rating = isNaN(ratingNum) ? 5 : ratingNum;
-    }
 
     updates.updatedAt = new Date();
 
@@ -364,7 +405,7 @@ app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 6. Delete Lesson **/
+/** 7. Delete Lesson **/
 app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -382,7 +423,7 @@ app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
     }
 
     if (existing.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Forbidden: You do not have permission to delete this lesson' });
+      return res.status(403).json({ success: false, message: 'Forbidden' });
     }
 
     await db.collection('lessons').deleteOne({ _id: existing._id });
@@ -396,15 +437,13 @@ app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   }
 });
 
-// Groq api
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-app.post('/api/ai/chat-partner', async (req, res) => {
+/** 8. AI Chat Partner Endpoint (15 Mins / 30 Msgs Limiter Applied) **/
+app.post('/api/ai/chat-partner', chatLimiter, async (req, res) => {
   try {
     const { message, chatHistory } = req.body;
     if (!message) return res.status(400).json({ success: false, message: 'Message required' });
 
-const systemInstruction = `তুমি হলে "Fluento Speak" অ্যাপের একজন অত্যন্ত ফ্রেন্ডলি, বুদ্ধিমান এবং প্রফেশনাল AI English Coach, যার নাম "Fluento AI"। তোমার কথাবার্তা হবে একদম স্বাভাবিক, সুন্দর এবং প্রফেশনাল মানুষের মতো।
+    const systemInstruction = `তুমি হলে "Fluento Speak" অ্যাপের একজন অত্যন্ত ফ্রেন্ডলি, বুদ্ধিমান এবং প্রফেশনাল AI English Coach, যার নাম "Fluento AI"। তোমার কথাবার্তা হবে একদম স্বাভাবিক, সুন্দর এবং প্রফেশনাল মানুষের মতো।
 
 নিচের নিয়মগুলো তোমাকে অবশ্যই ১০০% কঠোরভাবে মেনে চলতে হবে:
 
@@ -412,7 +451,7 @@ const systemInstruction = `তুমি হলে "Fluento Speak" অ্যা�
    - ইউজার যেভাবে ইচ্ছা (বাংলা, ইংলিশ বা বাংলিশ) প্রশ্ন করুক না কেন, তুমি অবশ্যই উত্তর দেবে খাঁটি বাংলা বর্ণমালায় (যেমন: "আপনি কেমন আছেন?") অথবা সহজ ইংরেজিতে।
    - কখনোই ইংরেজি হরফে বাংলা (Banglish) লিখবে না। প্রতিটা ইংরেজি লাইনের পর তার বাংলা অর্থ ব্র্যাকেটে লিখে দেবে।
 
-২. লাইন ব্রেক ও সুন্দর স্পেসিং (Line Break & Alignment):
+২. LINE BREAK ও সুন্দর স্পেসিং (Line Break & Alignment):
    - টানা কোনো লম্বা প্যারাগ্রাফ লিখবে না। 
    - প্রতিটা বাক্য বা পয়েন্টের মাঝে অবশ্যই ১টি করে ফাঁকা লাইন (Double Line Break) দেবে, যাতে চ্যাটে দেখতে সুন্দর ও পড়তে সহজ লাগে। সুন্দর ইমোজি ব্যবহার করবে।
 
@@ -444,41 +483,34 @@ const systemInstruction = `তুমি হলে "Fluento Speak" অ্যা�
     messages.push({ role: "user", content: message });
 
     const freeModelsToTry = [
-      "deepseek-r1-distill-llama-70b",
       "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
       "mixtral-8x7b-32768",
       "gemma2-9b-it"
     ];
 
-    let reply = "";
-    let lastError = null;
+    // Execution with Key Rotation and Model Fallbacks
+    const reply = await executeGroqWithFallback(async (groqInstance) => {
+      for (const modelName of freeModelsToTry) {
+        try {
+          console.log(`Trying Groq model: ${modelName}...`);
+          const completion = await groqInstance.chat.completions.create({
+            model: modelName,
+            messages: messages,
+            temperature: 0.5,
+            max_tokens: 1500,
+          });
 
-    for (const modelName of freeModelsToTry) {
-      try {
-        console.log(`Trying Groq model: ${modelName}...`);
-        const completion = await groq.chat.completions.create({
-          model: modelName,
-          messages: messages,
-          temperature: 0.5,
-          max_tokens: 1500,
-        });
-
-        reply = completion.choices[0]?.message?.content || '';
-        if (reply) {
-          reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-          console.log(`Successfully generated response using model: ${modelName}`);
-          break;
+          let textReply = completion.choices[0]?.message?.content || '';
+          if (textReply) {
+            return textReply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+          }
+        } catch (err) {
+          console.warn(`Model ${modelName} failed on current key, trying next fallback model... Error:`, err.message);
         }
-      } catch (err) {
-        console.warn(`Model ${modelName} failed, trying next fallback model... Error:`, err.message);
-        lastError = err;
       }
-    }
-
-    if (!reply) {
-      throw lastError || new Error("All Groq free models failed.");
-    }
+      throw new Error("All Groq models failed for this API key.");
+    });
 
     res.status(200).json({ success: true, reply: reply.trim() });
   } catch (err) {
@@ -487,7 +519,76 @@ const systemInstruction = `তুমি হলে "Fluento Speak" অ্যা�
   }
 });
 
-// error finder
+/** 9. AI Lesson Generator Endpoint (15 Mins / 5 Lessons Limiter Applied) **/
+app.post('/api/ai/generate-lesson', lessonGenLimiter, async (req, res) => {
+  try {
+    const { topic } = req.body;
+
+    if (!topic || !topic.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Topic is required',
+      });
+    }
+
+    const prompt = `You are Fluento AI, an expert English Learning Content Creator for Bangladeshi students on "Fluento Speak".
+Generate a highly practical, beautifully structured, and comprehensive English lesson based on the topic: "${topic}".
+
+STRICT FORMATTING RULES FOR "fullDescription":
+1. Start with a short, warm 1-2 line intro set up for practical situations (e.g., freelancing, daily conversation, office, job interviews, etc.).
+2. Categorize the lesson using clean horizontal dividers (━━━━━━━━━━━━━━━━━━━━) and section titles with emojis (e.g., 👋 Greeting, 📋 Understanding the Project, 🚀 While Working, etc.).
+3. Under each section, give practical English sentences with their precise Bengali translations (বাংলা: ...). Use '✅' or '✔' bullet icons.
+4. Keep the content detailed, concise, and structured so it fits within Groq's output token limits without getting truncated.
+
+Return ONLY a valid JSON object with these exact keys:
+{
+  "title": "A punchy, engaging title in English (e.g. Essential Freelancing English Sentences)",
+  "shortDescription": "A clear 1-2 sentence overview in English explaining how this lesson helps the student.",
+  "fullDescription": "The structured lesson following all formatting rules above, including Bengali meanings and visual section dividers.",
+  "category": "Freelancing",
+  "difficulty": "Beginner",
+  "price": 0
+}
+
+Validation Constraints:
+- category MUST be one of: "Vocabulary", "Grammar", "Business", "Freelancing", "Speaking"
+- difficulty MUST be one of: "Beginner", "Intermediate", "Advanced"
+- price MUST be a number between 0 and 50`;
+
+    // Execution with Key Rotation
+    const generatedData = await executeGroqWithFallback(async (groqInstance) => {
+      const completion = await groqInstance.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a JSON generator. Respond strictly with valid JSON only.',
+          },
+          { role: 'user', content: prompt },
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.4,
+        max_tokens: 2200,
+      });
+
+      const rawContent = completion.choices[0]?.message?.content || '{}';
+      return JSON.parse(rawContent);
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: generatedData,
+    });
+  } catch (error) {
+    console.error('Express AI Lesson Generator Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error?.message || 'Failed to generate lesson content with AI.',
+    });
+  }
+});
+
+// ERROR HANDLING MIDDLEWARE
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err);
   res.status(500).json({
@@ -496,6 +597,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// START SERVER
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Fluento Speak Backend Monolith listening on port ${PORT}`);
