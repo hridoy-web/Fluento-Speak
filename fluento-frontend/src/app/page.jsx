@@ -16,10 +16,10 @@ export default function HomePage() {
     <div className="overflow-x-hidden bg-slate-50 min-h-screen">
       <HeroBanner />
       <LatestInsights />
-      <KeyFeatures />
-      <HowItWorks />
+       <HowItWorks />
       <AIInDepth />
       <StudentSuccess />
+        <KeyFeatures />
       <LearningPath />
       <CallToAction />
     </div>

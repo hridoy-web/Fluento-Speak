@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 export default function CallToAction() {
   return (
-    <section className="bg-white py-24 px-4">
+    <section className="bg-slate-50 py-24 px-4">
       <div className="max-w-4xl mx-auto flex flex-col items-center text-center p-12 border border-slate-100 rounded-3xl shadow-sm bg-gradient-to-br from-white to-purple-50/30">
         
         {/* Animated Zap Icon */}

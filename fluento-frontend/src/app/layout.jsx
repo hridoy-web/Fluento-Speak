@@ -3,6 +3,7 @@ import './globals.css';
 import Navbar from '@/components/shared/Navbar';
 import Footer from '@/components/shared/Footer';
 import { Toaster } from 'react-hot-toast';
+import FloatingChat from '@/components/FloatingChat';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit', display: 'swap' });
@@ -36,6 +37,7 @@ export default function RootLayout({ children }) {
         </main>
 
         <Footer />
+        <FloatingChat />
       </body>
     </html>
   );

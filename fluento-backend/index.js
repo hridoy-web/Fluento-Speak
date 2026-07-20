@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { Groq } = require('groq-sdk');
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
 const cors = require('cors');
@@ -212,8 +213,8 @@ app.get('/api/lessons/latest-home', async (req, res, next) => {
   try {
     const latestLessons = await db.collection('lessons')
       .find({})
-      .sort({ createdAt: -1 }) 
-      .limit(4)               
+      .sort({ createdAt: -1 })
+      .limit(4)
       .toArray();
 
     res.json({
@@ -221,10 +222,10 @@ app.get('/api/lessons/latest-home', async (req, res, next) => {
       data: latestLessons
     });
   } catch (err) {
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to fetch latest home data", 
-      error: err.message 
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch latest home data",
+      error: err.message
     });
   }
 });
@@ -255,10 +256,10 @@ app.get('/api/lessons/:id', async (req, res, next) => {
   }
 });
 
-/** 5. Upload API (Add Lesson) Protected **/
+/** . Upload API (Add Lesson) Protected **/
 app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   try {
-    
+
     const { title, shortDescription, fullDescription, category, difficulty, imageUrl, imageUrls, role, author, profileImage } = req.body;
 
     if (!title || !shortDescription || !fullDescription || !category || !difficulty || !imageUrl) {
@@ -277,9 +278,9 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
       fullDescription: fullDescription.trim(),
       category: category.trim(),
       difficulty: difficulty.trim(),
-      
+
       // Future-proof rating architecture (starts at 0)
-      rating: 0, 
+      rating: 0,
       totalRatings: 0,
       ratingSum: 0,
 
@@ -288,7 +289,7 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
       name: req.user.name,
       profileImage: profileImage || req.user.image || '',
       author: author || req.user.name,
-      role: role || 'Student', 
+      role: role || 'Student',
       userId: req.user._id,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -309,7 +310,7 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 6. My Lesson Edit Update **/
+/** 5. My Lesson Edit Update **/
 app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -363,7 +364,7 @@ app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 7. Delete Lesson **/
+/** 6. Delete Lesson **/
 app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   try {
     const id = req.params.id;
@@ -392,6 +393,97 @@ app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
     });
   } catch (err) {
     next(err);
+  }
+});
+
+// Groq api
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+app.post('/api/ai/chat-partner', async (req, res) => {
+  try {
+    const { message, chatHistory } = req.body;
+    if (!message) return res.status(400).json({ success: false, message: 'Message required' });
+
+const systemInstruction = `তুমি হলে "Fluento Speak" অ্যাপের একজন অত্যন্ত ফ্রেন্ডলি, বুদ্ধিমান এবং প্রফেশনাল AI English Coach, যার নাম "Fluento AI"। তোমার কথাবার্তা হবে একদম স্বাভাবিক, সুন্দর এবং প্রফেশনাল মানুষের মতো।
+
+নিচের নিয়মগুলো তোমাকে অবশ্যই ১০০% কঠোরভাবে মেনে চলতে হবে:
+
+১. ভাষার নিখুঁত ব্যবহার (No Banglish):
+   - ইউজার যেভাবে ইচ্ছা (বাংলা, ইংলিশ বা বাংলিশ) প্রশ্ন করুক না কেন, তুমি অবশ্যই উত্তর দেবে খাঁটি বাংলা বর্ণমালায় (যেমন: "আপনি কেমন আছেন?") অথবা সহজ ইংরেজিতে।
+   - কখনোই ইংরেজি হরফে বাংলা (Banglish) লিখবে না। প্রতিটা ইংরেজি লাইনের পর তার বাংলা অর্থ ব্র্যাকেটে লিখে দেবে।
+
+২. লাইন ব্রেক ও সুন্দর স্পেসিং (Line Break & Alignment):
+   - টানা কোনো লম্বা প্যারাগ্রাফ লিখবে না। 
+   - প্রতিটা বাক্য বা পয়েন্টের মাঝে অবশ্যই ১টি করে ফাঁকা লাইন (Double Line Break) দেবে, যাতে চ্যাটে দেখতে সুন্দর ও পড়তে সহজ লাগে। সুন্দর ইমোজি ব্যবহার করবে।
+
+৩. ফালতু টপিক বাদ দেওয়া (Strict Rule):
+   - স্টুডেন্ট যদি ইংরেজি শেখা বাদে অন্য কোনো হাবিজাবি বিষয়ে কথা বলতে চায়, তবে সরাসরি বলবে: "সময় নষ্ট না করে চলুন আমরা ইংলিশ প্র্যাকটিস করি!" এবং সাথে সাথেই প্র্যাকটিস করার জন্য একটা ছোট ইংরেজি প্রশ্ন করবে।
+
+৪. বিস্তারিত ও রিয়েল-লাইফ এক্সাম্পল:
+   - ইংরেজি নিয়ে যা-ই শেখাবে, তা বাস্তব জীবনের উদাহরণসহ পরিষ্কার ও সুন্দর ফরম্যাটে (Bullet points, Bold text) গুছিয়ে বোঝাবে।
+
+৫. ইন্টারঅ্যাক্টিভ ক্লোজিং:
+   - প্রতিটি উত্তরের শেষে অবশ্যই সুন্দর ও ছোট একটি ইংরেজি প্রশ্ন করবে, যেন স্টুডেন্ট উত্তর দিয়ে ইংরেজি প্র্যাকটিস চালিয়ে যেতে পারে।`;
+
+    const messages = [
+      { role: "system", content: systemInstruction }
+    ];
+
+    if (chatHistory && Array.isArray(chatHistory)) {
+      const optimizedHistory = chatHistory.slice(-6);
+      optimizedHistory.forEach(h => {
+        if (h.role && h.text) {
+          messages.push({
+            role: h.role === 'user' ? 'user' : 'assistant',
+            content: h.text
+          });
+        }
+      });
+    }
+
+    messages.push({ role: "user", content: message });
+
+    const freeModelsToTry = [
+      "deepseek-r1-distill-llama-70b",
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it"
+    ];
+
+    let reply = "";
+    let lastError = null;
+
+    for (const modelName of freeModelsToTry) {
+      try {
+        console.log(`Trying Groq model: ${modelName}...`);
+        const completion = await groq.chat.completions.create({
+          model: modelName,
+          messages: messages,
+          temperature: 0.5,
+          max_tokens: 1500,
+        });
+
+        reply = completion.choices[0]?.message?.content || '';
+        if (reply) {
+          reply = reply.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+          console.log(`Successfully generated response using model: ${modelName}`);
+          break;
+        }
+      } catch (err) {
+        console.warn(`Model ${modelName} failed, trying next fallback model... Error:`, err.message);
+        lastError = err;
+      }
+    }
+
+    if (!reply) {
+      throw lastError || new Error("All Groq free models failed.");
+    }
+
+    res.status(200).json({ success: true, reply: reply.trim() });
+  } catch (err) {
+    console.error("Groq API Error:", err);
+    res.status(500).json({ success: false, message: err?.message || "Server error" });
   }
 });
 

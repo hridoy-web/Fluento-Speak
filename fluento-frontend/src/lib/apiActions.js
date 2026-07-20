@@ -88,4 +88,38 @@ export const apiActions = {
     });
     return response.json();
   },
+
+
+  // AI Content Generator (AI English Lesson Creator)
+  generateAILesson: async (lessonParams) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${BASE_URL}/ai/generate-lesson`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(lessonParams),
+      });
+      return response.json();
+    } catch (error) {
+      console.error("Error in generateAILesson action:", error);
+      return { success: false, message: "Failed to connect to AI Generator Service." };
+    }
+  },
+
+
+  // AI Chat Assistant (Context-Aware Language Partner)
+  sendMessageToAIChat: async (chatPayload) => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await fetch(`${BASE_URL}/ai/chat-partner`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(chatPayload), 
+      });
+      return response.json();
+    } catch (error) {
+      console.error("Error in sendMessageToAIChat action:", error);
+      return { success: false, message: "Failed to connect to AI Chat Partner Service." };
+    }
+  },
 };
