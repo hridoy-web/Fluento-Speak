@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
 import { FiMenu, FiUser, FiLogOut, FiBookOpen, FiCompass, FiPlusCircle, FiHome, FiSliders } from 'react-icons/fi';
-import Image from 'next/image';
 import BrandLogo from '../ui/BrandLogo';
 
 const NAV_PUBLIC = [
@@ -69,13 +68,10 @@ export default function Navbar() {
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="flex items-center gap-2 border border-slate-200 py-1.5 pr-4 pl-1.5 rounded-full cursor-pointer select-none hover:bg-slate-50 transition-colors">
                 <div className="w-8 h-8 rounded-full relative overflow-hidden shrink-0">
-                  <Image
+                  <img
                     src={avatarSrc}
                     alt="Profile"
-                    width={32}
-                    height={32}
                     className="object-cover w-full h-full"
-                    priority
                   />
                 </div>
                 <span className="text-sm font-bold text-slate-700">{firstName}</span>
@@ -132,12 +128,12 @@ export default function Navbar() {
             /* Mobile Authenticated Dropdown (Replaces Hamburger) */
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="w-9 h-9 rounded-full relative overflow-hidden block border border-slate-200 cursor-pointer">
-                <Image src={avatarSrc} alt="Profile" width={36} height={36} className="object-cover w-full h-full" />
+                <img src={avatarSrc} alt="Profile" className="object-cover w-full h-full" />
               </label>
               <ul tabIndex={0} className="dropdown-content menu p-3 shadow-2xl bg-white border border-slate-200/80 rounded-2xl w-72 mt-3 z-50 gap-1">
                 <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl mb-2">
                   <div className="w-9 h-9 rounded-full relative border border-slate-200 overflow-hidden shrink-0">
-                    <Image src={avatarSrc} alt="Profile" width={36} height={36} />
+                    <img src={avatarSrc} alt="Profile" className="object-cover w-full h-full" />
                   </div>
                   <div className="truncate">
                     <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
