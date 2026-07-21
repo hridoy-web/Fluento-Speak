@@ -17,6 +17,8 @@ const FOOTER_LINKS = {
     { label: 'Pronunciation', href: '/explore?category=Pronunciation' },
   ],
   Community: [
+    { label: 'About', href: '/about' },
+    { label: 'Blog', href: '/blog' },
     { label: 'Join for Free', href: '/register' },
     { label: 'Log In', href: '/login' },
   ],
@@ -49,26 +51,22 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    // একটি গভীর ও প্রিমিয়াম নেভি-ব্ল্যাক শেড এবং সূক্ষ্ম টপ বর্ডার
     <footer className="bg-[#0b1329] border-t border-slate-800/80 font-sans antialiased text-slate-300">
-      
+
       {/* Main Footer Grid */}
       <div className="w-11/12 max-w-7xl mx-auto py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 md:gap-8">
-          
-          {/* Brand Column */}
+
           <div className="lg:col-span-2 space-y-4">
-            {/* আপনার ব্রান্ড লোগো ডার্ক ব্যাকগ্রাউন্ডে ফুটিয়ে তোলার জন্য হালকা গ্লো ইফেক্ট */}
             <div className="inline-block brightness-110 contrast-125">
               <BrandLogo />
             </div>
-            
+
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm font-medium">
               A community-powered English learning platform with AI-enhanced lessons for
               speaking, vocabulary, grammar, and daily conversation.
             </p>
-            
-            {/* ডার্ক থিমের সোশ্যাল আইকনস - কনট্রাস্ট এবং মডার্ন ইন্টারঅ্যাক্টিভ হোভারসহ */}
+
             <div className="flex items-center gap-2.5 pt-3">
               {SOCIAL_LINKS.map((s) => {
                 const IconComponent = s.icon;
@@ -88,10 +86,8 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Link Groups - টেক্সট কনট্রাস্ট সম্পূর্ণ ফিক্সড */}
           {Object.entries(FOOTER_LINKS).map(([group, links]) => (
             <div key={group} className="space-y-4">
-              {/* হেডিংটিকে পরিষ্কার এবং উজ্জ্বল করা হয়েছে */}
               <h4 className="text-[11px] font-black uppercase tracking-wider text-slate-200/90">
                 {group}
               </h4>
@@ -118,15 +114,15 @@ export default function Footer() {
           <p className="text-slate-400/90">
             &copy; {currentYear} Fluento Speak. All rights reserved.
           </p>
-          
+
           <div className="flex items-center text-slate-500 font-medium">
             <span>Made for English learners in Bangladesh</span>
           </div>
-          
+
           <div className="flex gap-6 text-slate-400">
             <span className="hover:text-violet-400 cursor-pointer transition-colors">Privacy</span>
             <span className="hover:text-violet-400 cursor-pointer transition-colors">Terms</span>
-            <span className="hover:text-violet-400 cursor-pointer transition-colors">Contact</span>
+            <Link href='/contact' className="hover:text-violet-400 cursor-pointer transition-colors">Contact</Link>
           </div>
         </div>
       </div>

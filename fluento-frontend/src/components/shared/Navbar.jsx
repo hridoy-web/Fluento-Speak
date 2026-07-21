@@ -5,10 +5,14 @@ import { usePathname } from 'next/navigation';
 import { authClient } from '@/lib/auth-client';
 import { FiMenu, FiUser, FiLogOut, FiBookOpen, FiCompass, FiPlusCircle, FiHome, FiSliders } from 'react-icons/fi';
 import BrandLogo from '../ui/BrandLogo';
+import { RxInfoCircled } from 'react-icons/rx';
+import { RiContactsBook3Line } from 'react-icons/ri';
 
 const NAV_PUBLIC = [
   { href: '/', label: 'Home', icon: FiHome },
   { href: '/explore', label: 'Explore', icon: FiCompass },
+  { href: '/contact', label: 'Contact', icon: RiContactsBook3Line },
+  { href: '/about', label: 'About', icon: RxInfoCircled }
 ];
 
 const NAV_AUTH = [
@@ -16,12 +20,13 @@ const NAV_AUTH = [
   { href: '/explore', label: 'Explore', icon: FiCompass },
   { href: '/items/add', label: 'Add Lesson', icon: FiPlusCircle },
   { href: '/items/manage', label: 'Manage Lessons', icon: FiBookOpen },
+  { href: '/about', label: 'About', icon: RxInfoCircled }
 ];
 
 export default function Navbar() {
   const { data: session, isPending } = authClient.useSession();
   const pathname = usePathname();
-  
+
   const user = session?.user;
   const navLinks = user ? NAV_AUTH : NAV_PUBLIC;
 
@@ -31,16 +36,19 @@ export default function Navbar() {
     });
   };
 
-  const avatarSrc = user?.image || '/images/user-icon-logo.png';
-  
+  // Safe Avatar Source Check (Prevents null or broken URL crash)
+  const avatarSrc = user?.image && typeof user.image === 'string' && user.image.startsWith('http')
+    ? user.image 
+    : '/images/user-icon-logo.png';
+
   // Extract user first name
   const firstName = user?.name ? user.name.split(' ')[0] : '';
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200/50 transition-all">
       <div className="w-11/12 mx-auto flex items-center justify-between h-16">
-        
-       <BrandLogo/>
+
+        <BrandLogo />
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-1 bg-slate-100/70 p-1 rounded-xl border border-slate-200/40">
@@ -67,11 +75,14 @@ export default function Navbar() {
             /* Desktop User Profile Dropdown */
             <div className="dropdown dropdown-end">
               <label tabIndex={0} className="flex items-center gap-2 border border-slate-200 py-1.5 pr-4 pl-1.5 rounded-full cursor-pointer select-none hover:bg-slate-50 transition-colors">
-                <div className="w-8 h-8 rounded-full relative overflow-hidden shrink-0">
+                <div className="w-8 h-8 rounded-full relative overflow-hidden shrink-0 bg-slate-100">
                   <img
                     src={avatarSrc}
                     alt="Profile"
                     className="object-cover w-full h-full"
+                    onError={(e) => {
+                      e.target.src = '/images/user-icon-logo.png';
+                    }}
                   />
                 </div>
                 <span className="text-sm font-bold text-slate-700">{firstName}</span>
@@ -127,13 +138,27 @@ export default function Navbar() {
           ) : user ? (
             /* Mobile Authenticated Dropdown (Replaces Hamburger) */
             <div className="dropdown dropdown-end">
-              <label tabIndex={0} className="w-9 h-9 rounded-full relative overflow-hidden block border border-slate-200 cursor-pointer">
-                <img src={avatarSrc} alt="Profile" className="object-cover w-full h-full" />
+              <label tabIndex={0} className="w-9 h-9 rounded-full relative overflow-hidden block border border-slate-200 cursor-pointer bg-slate-100">
+                <img 
+                  src={avatarSrc} 
+                  alt="Profile" 
+                  className="object-cover w-full h-full" 
+                  onError={(e) => {
+                    e.target.src = '/images/user-icon-logo.png';
+                  }}
+                />
               </label>
               <ul tabIndex={0} className="dropdown-content menu p-3 shadow-2xl bg-white border border-slate-200/80 rounded-2xl w-72 mt-3 z-50 gap-1">
                 <div className="flex items-center gap-3 p-2 bg-slate-50 rounded-xl mb-2">
-                  <div className="w-9 h-9 rounded-full relative border border-slate-200 overflow-hidden shrink-0">
-                    <img src={avatarSrc} alt="Profile" className="object-cover w-full h-full" />
+                  <div className="w-9 h-9 rounded-full relative border border-slate-200 overflow-hidden shrink-0 bg-slate-100">
+                    <img 
+                      src={avatarSrc} 
+                      alt="Profile" 
+                      className="object-cover w-full h-full" 
+                      onError={(e) => {
+                        e.target.src = '/images/user-icon-logo.png';
+                      }}
+                    />
                   </div>
                   <div className="truncate">
                     <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
@@ -177,7 +202,7 @@ export default function Navbar() {
               <Link href="/login" className="py-2 px-4 text-sm font-inter font-bold uppercase text-indigo-600 bg-transparent border border-indigo-600/10 transition-all">
                 Log In
               </Link>
-              
+
               <div className="dropdown dropdown-end">
                 <label tabIndex={0} className="btn btn-ghost btn-circle text-slate-700">
                   <FiMenu className="w-6 h-6" />
