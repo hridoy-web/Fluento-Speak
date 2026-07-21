@@ -22,24 +22,11 @@ Bridging the barrier between passive learning and confident, real-world communic
 
 ## ✨ Key Features & Architecture
 
-### 1. Core Public Experience
-* **Responsive Home Page:** Clean, modern, professional interface optimized for all screen sizes.
-* **Explore Page:** A centralized hub where visitors and users explore community-shared English lessons and insights (backed by multi-role permissions for Admin and Student profiles).
-* **Informational Pages:** Fully styled Blog, Contact, and About sections.
-
-### 2. Authentication & Role Management
-* **Secure Onboarding:** Streamlined sign-up and authentication workflow.
-* **Automatic Role Assignment:** New registrations are instantly assigned a **Student** role, granting immediate access to protected routes and post-creation utilities.
-
-### 3. Dynamic Lesson Management
-* **Add & Manage Lessons:** Registered students can seamlessly create, publish, and control their own learning resources and English posts.
-
-### 4. Advanced AI-Powered Capabilities
-* **💬 Global Floating AI Assistant:** Available persistently at the bottom-left of every page.
-  * Converses naturally in both **Bengali and English**.
-  * Responds in Bengali while providing side-by-side English sentence structures to reinforce learning.
-  * Acts as an on-demand interactive practice partner for grammar and conversational fluency.
-* **⚡ AI Post Generator:** Integrated directly into the lesson creation tool—type a single word or a brief hint, and the AI automatically writes a fully structured post complete with a title, short description, and detailed breakdown.
+* **🏠 Core Pages:** Fully responsive Home, Explore (community lessons), and static informational pages.
+* **👤 User Auth & Roles:** Secure Login and Register authentication with **BetterAuth**.
+* **📝 Lesson Management:** Create, publish, and manage personal English learning posts.
+* **🤖 Floating AI Assistant:** Bottom-left persistent chat providing bilingual practice and side-by-side English translations.
+* **⚡ AI Post Generator:** Generates structured titles, summaries, and details instantly from a single keyword.
 
 ---
 
