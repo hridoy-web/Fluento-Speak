@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiActions } from "@/lib/apiActions";
 import { FiSearch, FiBookOpen, FiChevronLeft, FiChevronRight, FiSliders, FiBarChart2 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import LessonCard from "@/components/ui/LessonCard";
 
-const CATEGORIES = ["All", "Freelancing", "Speaking", "Vocabulary", "Daily Conversation", "Grammar"];
+const CATEGORIES = ["All", "Freelancing English", "Speaking", "Vocabulary", "Daily Conversation", "Grammar"];
 const DIFFICULTIES = ["All", "Beginner", "Intermediate", "Advanced"];
 const SORT_OPTIONS = [
   { label: "Latest First", value: "date" },
@@ -42,6 +42,7 @@ function ExploreContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Read params from URL
   const currentCategory = searchParams.get("category") || "All";
   const currentDifficulty = searchParams.get("difficulty") || "All";
   const currentSort = searchParams.get("sortBy") || "date";
@@ -53,47 +54,64 @@ function ExploreContent() {
   const [searchInput, setSearchInput] = useState(currentSearch);
   const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
 
-  const fetchLessons = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = {
-        page: currentPage,
-        limit: 8,
-        sortBy: currentSort,
-        order: "desc"
-      };
-
-      if (currentCategory !== "All") params.category = currentCategory;
-      if (currentDifficulty !== "All") params.difficulty = currentDifficulty;
-      if (currentSearch.trim() !== "") params.search = currentSearch;
-
-      const res = await apiActions.getAllLessons(params);
-      if (res && res.success) {
-        setLessons(res.data || []);
-        setPagination({
-          totalPages: res.totalPages || 1,
-          total: res.total || 0
-        });
-      } else {
-        setLessons([]);
-      }
-    } catch (error) {
-      console.error("Error fetching lessons:", error);
-      toast.error("Failed to load lessons");
-      setLessons([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [currentCategory, currentDifficulty, currentSort, currentPage, currentSearch]);
-
+  // Keep input synced when URL query changes directly
   useEffect(() => {
+    setSearchInput(currentSearch);
+  }, [currentSearch]);
+
+  // Main Data Fetching Logic (Direct Effect without useCallback staleness)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLessons = async () => {
+      setLoading(true);
+      try {
+        const params = {
+          page: currentPage,
+          limit: 8,
+          sortBy: currentSort,
+          order: "desc"
+        };
+
+        if (currentCategory !== "All") params.category = currentCategory;
+        if (currentDifficulty !== "All") params.difficulty = currentDifficulty;
+        if (currentSearch.trim() !== "") params.search = currentSearch;
+
+        const res = await apiActions.getAllLessons(params);
+
+        if (isMounted) {
+          if (res && res.success) {
+            setLessons(res.data || []);
+            setPagination({
+              totalPages: res.totalPages || 1,
+              total: res.total || 0
+            });
+          } else {
+            setLessons([]);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching lessons:", error);
+        if (isMounted) {
+          toast.error("Failed to load lessons");
+          setLessons([]);
+        }
+      } font-medium {
+        if (isMounted) setLoading(false);
+      }
+    };
+
     fetchLessons();
-  }, [fetchLessons]);
+
+    return () => {
+      isMounted = false; // Prevent state updates if component unmounts
+    };
+  }, [currentCategory, currentDifficulty, currentSort, currentPage, currentSearch]);
 
   const updateUrlParams = (updates) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
-      if (value === "All" || value === "" || value === 1) {
+      if (value === "All" || value === "" || (key === "page" && value === 1)) {
         params.delete(key);
       } else {
         params.set(key, value);
@@ -111,7 +129,7 @@ function ExploreContent() {
     <div className="min-h-screen bg-[#fafafa] py-12 font-sans antialiased">
       <div className="w-11/12 mx-auto space-y-8">
         
-        {/* Brand Main Header */}
+        {/* Brand Header */}
         <div className="text-center max-w-2xl mx-auto space-y-4">
           <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
             Explore AI-Enhanced Lessons
@@ -121,10 +139,10 @@ function ExploreContent() {
           </p>
         </div>
 
-        {/* Super Premium One-Line Filter Controller */}
+        {/* Filter Controller */}
         <div className="bg-white p-3.5 border border-slate-200/60 rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.01)] flex flex-col xl:flex-row items-center justify-between gap-4">
           
-          {/* Left Side: Search Bar */}
+          {/* Search Bar */}
           <form onSubmit={handleSearchSubmit} className="relative w-full xl:w-72 flex-shrink-0">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
               <FiSearch className="w-4 h-4" />
@@ -138,7 +156,7 @@ function ExploreContent() {
             />
           </form>
 
-          {/* Middle Side: Inline Category Tabs */}
+          {/* Category Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full xl:w-auto py-1 justify-start xl:justify-center">
             {CATEGORIES.map((cat) => (
               <button
@@ -155,10 +173,10 @@ function ExploreContent() {
             ))}
           </div>
 
-          {/* Right Side: Dropdown Caps */}
+          {/* Dropdown Filters */}
           <div className="flex items-center justify-center gap-2 w-full xl:w-auto flex-shrink-0">
             
-            {/* Compact Difficulty Dropdown */}
+            {/* Difficulty Dropdown */}
             <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded px-2.5 py-1.5 hover:border-slate-300 transition-all">
               <FiSliders className="w-3.5 h-3.5 text-indigo-500 mr-1.5 flex-shrink-0" />
               <select
@@ -172,7 +190,7 @@ function ExploreContent() {
               </select>
             </div>
 
-            {/* Compact Sorting Dropdown */}
+            {/* Sort Dropdown */}
             <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded px-2.5 py-1.5 hover:border-slate-300 transition-all">
               <FiBarChart2 className="w-3.5 h-3.5 text-purple-500 mr-1.5 flex-shrink-0" />
               <select
@@ -202,10 +220,10 @@ function ExploreContent() {
             <FiBookOpen className="w-8 h-8 mx-auto text-slate-300 mb-2" />
             <p className="text-xs font-bold text-slate-500">No lessons found</p>
             <button 
-              onClick={fetchLessons}
+              onClick={() => updateUrlParams({ category: "All", difficulty: "All", search: "", page: 1 })}
               className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors cursor-pointer"
             >
-              Try Again
+              Reset Filters
             </button>
           </div>
         ) : (
