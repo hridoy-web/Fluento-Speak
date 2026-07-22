@@ -1,5 +1,3 @@
-"import { Suspense } from 'react';" 
-
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
@@ -9,7 +7,7 @@ import { FiSearch, FiBookOpen, FiChevronLeft, FiChevronRight, FiSliders, FiBarCh
 import toast from "react-hot-toast";
 import LessonCard from "@/components/ui/LessonCard";
 
-const CATEGORIES = ["All", "Freelancing English", "Speaking", "Vocabulary", "Daily Conversation", "Grammar"];
+const CATEGORIES = ["All", "Freelancing", "Speaking", "Vocabulary", "Daily Conversation", "Grammar"];
 const DIFFICULTIES = ["All", "Beginner", "Intermediate", "Advanced"];
 const SORT_OPTIONS = [
   { label: "Latest First", value: "date" },
@@ -47,7 +45,7 @@ function ExploreContent() {
   const currentCategory = searchParams.get("category") || "All";
   const currentDifficulty = searchParams.get("difficulty") || "All";
   const currentSort = searchParams.get("sortBy") || "date";
-  const currentPage = parseInt(searchParams.get("page"), 10) || 1;
+  const currentPage = parseInt(searchParams.get("page") || "1", 10);
   const currentSearch = searchParams.get("search") || "";
 
   const [lessons, setLessons] = useState([]);
@@ -82,6 +80,7 @@ function ExploreContent() {
     } catch (error) {
       console.error("Error fetching lessons:", error);
       toast.error("Failed to load lessons");
+      setLessons([]);
     } finally {
       setLoading(false);
     }
@@ -199,9 +198,15 @@ function ExploreContent() {
             ))}
           </div>
         ) : lessons.length === 0 ? (
-          <div className="text-center py-20 bg-white border border-dashed border-slate-200 rounded-2xl">
+          <div className="text-center py-20 bg-white border border-dashed border-slate-200 rounded-2xl space-y-4">
             <FiBookOpen className="w-8 h-8 mx-auto text-slate-300 mb-2" />
             <p className="text-xs font-bold text-slate-500">No lessons found</p>
+            <button 
+              onClick={fetchLessons}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors cursor-pointer"
+            >
+              Try Again
+            </button>
           </div>
         ) : (
           <>
