@@ -171,12 +171,19 @@ async function authenticateUser(req, res, next) {
 
 // REST API ENDPOINTS
 
-/** 1. Get (My Lessons) **/
+/** 1. Get My Lessons **/
 app.get('/api/lessons/my-lessons', authenticateUser, async (req, res, next) => {
   try {
-    const userId = req.user._id;
+    const rawUserId = req.user._id;
+    const queryUserId = getQueryId(rawUserId);
+
     const lessonsList = await db.collection('lessons')
-      .find({ userId: userId })
+      .find({
+        $or: [
+          { userId: queryUserId },
+          { userId: rawUserId?.toString() }
+        ]
+      })
       .sort({ createdAt: -1 })
       .toArray();
 
@@ -213,7 +220,7 @@ app.get('/api/lessons', async (req, res, next) => {
     }
 
     let sortOptions = {};
-    const sortField = sortBy || 'date';
+    const sortField = sortBy || 'createdAt';
     const sortOrder = order === 'asc' ? 1 : -1;
 
     if (sortField === 'date' || sortField === 'createdAt') {
@@ -262,7 +269,7 @@ app.get('/api/lessons', async (req, res, next) => {
   }
 });
 
-/** 3. Homepage Latest Lessons **/
+/** 3. Homepage Latest Lessons (Must stay BEFORE /:id route) **/
 app.get('/api/lessons/latest-home', async (req, res, next) => {
   try {
     const latestLessons = await db.collection('lessons')
@@ -276,11 +283,7 @@ app.get('/api/lessons/latest-home', async (req, res, next) => {
       data: latestLessons
     });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch latest home data",
-      error: err.message
-    });
+    next(err);
   }
 });
 
@@ -336,11 +339,14 @@ app.post('/api/lessons', authenticateUser, async (req, res, next) => {
       ratingSum: 0,
       imageUrl: resolvedImageUrl,
       imageUrls: resolvedImageUrls,
-      name: req.user.name,
+      name: req.user.name || '',
       profileImage: profileImage || req.user.image || '',
-      author: author || req.user.name,
+      author: author || req.user.name || '',
       role: role || 'Student',
-      userId: req.user._id,
+      
+      // FIX: Ensure userId is stored consistently as ObjectId/QueryId
+      userId: getQueryId(req.user._id),
+      
       createdAt: new Date(),
       updatedAt: new Date()
     };
@@ -377,8 +383,12 @@ app.put('/api/lessons/:id', authenticateUser, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Lesson not found' });
     }
 
-    if (existing.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
+    // Safe ownership check
+    const lessonOwnerId = existing.userId ? existing.userId.toString() : "";
+    const currentUserId = req.user._id ? req.user._id.toString() : "";
+
+    if (lessonOwnerId !== currentUserId) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to edit this lesson' });
     }
 
     const updates = { ...req.body };
@@ -422,8 +432,11 @@ app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Lesson not found' });
     }
 
-    if (existing.userId.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Forbidden' });
+    const lessonOwnerId = existing.userId ? existing.userId.toString() : "";
+    const currentUserId = req.user._id ? req.user._id.toString() : "";
+
+    if (lessonOwnerId !== currentUserId) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to delete this lesson' });
     }
 
     await db.collection('lessons').deleteOne({ _id: existing._id });
@@ -437,8 +450,8 @@ app.delete('/api/lessons/:id', authenticateUser, async (req, res, next) => {
   }
 });
 
-/** 8. AI Chat Partner Endpoint (15 Mins / 30 Msgs Limiter Applied) **/
-app.post('/api/ai/chat-partner', chatLimiter, async (req, res) => {
+/** 8. AI Chat Partner Endpoint **/
+app.post('/api/ai/chat-partner', chatLimiter, async (req, res, next) => {
   try {
     const { message, chatHistory } = req.body;
     if (!message) return res.status(400).json({ success: false, message: 'Message required' });
@@ -514,13 +527,12 @@ app.post('/api/ai/chat-partner', chatLimiter, async (req, res) => {
 
     res.status(200).json({ success: true, reply: reply.trim() });
   } catch (err) {
-    console.error("Groq API Error:", err);
-    res.status(500).json({ success: false, message: err?.message || "Server error" });
+    next(err);
   }
 });
 
-/** 9. AI Lesson Generator Endpoint (15 Mins / 5 Lessons Limiter Applied) **/
-app.post('/api/ai/generate-lesson', lessonGenLimiter, async (req, res) => {
+/** 9. AI Lesson Generator Endpoint **/
+app.post('/api/ai/generate-lesson', lessonGenLimiter, async (req, res, next) => {
   try {
     const { topic } = req.body;
 
@@ -580,11 +592,7 @@ Validation Constraints:
       data: generatedData,
     });
   } catch (error) {
-    console.error('Express AI Lesson Generator Error:', error);
-    return res.status(500).json({
-      success: false,
-      message: error?.message || 'Failed to generate lesson content with AI.',
-    });
+    next(error);
   }
 });
 
