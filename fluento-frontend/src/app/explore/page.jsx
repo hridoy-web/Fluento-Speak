@@ -42,24 +42,25 @@ function ExploreContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Read params from URL
+  // URL parameters parsing
   const currentCategory = searchParams.get("category") || "All";
   const currentDifficulty = searchParams.get("difficulty") || "All";
   const currentSort = searchParams.get("sortBy") || "date";
   const currentPage = parseInt(searchParams.get("page") || "1", 10);
   const currentSearch = searchParams.get("search") || "";
 
+  // Component states
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchInput, setSearchInput] = useState(currentSearch);
   const [pagination, setPagination] = useState({ totalPages: 1, total: 0 });
 
-  // Keep input synced when URL query changes directly
+  // Sync search input field with URL search parameter
   useEffect(() => {
     setSearchInput(currentSearch);
   }, [currentSearch]);
 
-  // Main Data Fetching Logic (Direct Effect without useCallback staleness)
+  // Fetch lessons dynamically on URL parameter change
   useEffect(() => {
     let isMounted = true;
 
@@ -96,7 +97,7 @@ function ExploreContent() {
           toast.error("Failed to load lessons");
           setLessons([]);
         }
-      } font-medium {
+      } finally {
         if (isMounted) setLoading(false);
       }
     };
@@ -104,10 +105,11 @@ function ExploreContent() {
     fetchLessons();
 
     return () => {
-      isMounted = false; // Prevent state updates if component unmounts
+      isMounted = false;
     };
   }, [currentCategory, currentDifficulty, currentSort, currentPage, currentSearch]);
 
+  // Handle URL query parameters update
   const updateUrlParams = (updates) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(updates).forEach(([key, value]) => {
@@ -129,7 +131,7 @@ function ExploreContent() {
     <div className="min-h-screen bg-[#fafafa] py-12 font-sans antialiased">
       <div className="w-11/12 mx-auto space-y-8">
         
-        {/* Brand Header */}
+        {/* Header Section */}
         <div className="text-center max-w-2xl mx-auto space-y-4">
           <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
             Explore AI-Enhanced Lessons
@@ -139,10 +141,10 @@ function ExploreContent() {
           </p>
         </div>
 
-        {/* Filter Controller */}
+        {/* Filter Toolbar */}
         <div className="bg-white p-3.5 border border-slate-200/60 rounded-2xl shadow-[0_4px_25px_rgba(0,0,0,0.01)] flex flex-col xl:flex-row items-center justify-between gap-4">
           
-          {/* Search Bar */}
+          {/* Search Box */}
           <form onSubmit={handleSearchSubmit} className="relative w-full xl:w-72 flex-shrink-0">
             <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
               <FiSearch className="w-4 h-4" />
@@ -156,7 +158,7 @@ function ExploreContent() {
             />
           </form>
 
-          {/* Category Tabs */}
+          {/* Category Selector */}
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full xl:w-auto py-1 justify-start xl:justify-center">
             {CATEGORIES.map((cat) => (
               <button
@@ -176,7 +178,7 @@ function ExploreContent() {
           {/* Dropdown Filters */}
           <div className="flex items-center justify-center gap-2 w-full xl:w-auto flex-shrink-0">
             
-            {/* Difficulty Dropdown */}
+            {/* Difficulty Filter */}
             <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded px-2.5 py-1.5 hover:border-slate-300 transition-all">
               <FiSliders className="w-3.5 h-3.5 text-indigo-500 mr-1.5 flex-shrink-0" />
               <select
@@ -185,12 +187,14 @@ function ExploreContent() {
                 className="bg-transparent text-slate-700 text-xs font-bold focus:outline-none cursor-pointer pr-3"
               >
                 {DIFFICULTIES.map((diff) => (
-                  <option key={diff} value={diff}>{diff === "All" ? "All Levels" : diff}</option>
+                  <option key={diff} value={diff}>
+                    {diff === "All" ? "All Levels" : diff}
+                  </option>
                 ))}
               </select>
             </div>
 
-            {/* Sort Dropdown */}
+            {/* Sorting Filter */}
             <div className="relative flex items-center bg-slate-50 border border-slate-200/80 rounded px-2.5 py-1.5 hover:border-slate-300 transition-all">
               <FiBarChart2 className="w-3.5 h-3.5 text-purple-500 mr-1.5 flex-shrink-0" />
               <select
@@ -199,7 +203,9 @@ function ExploreContent() {
                 className="bg-transparent text-slate-700 text-xs font-bold focus:outline-none cursor-pointer pr-3"
               >
                 {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -208,7 +214,7 @@ function ExploreContent() {
 
         </div>
 
-        {/* Display Grid */}
+        {/* Content Display Area */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(8)].map((_, idx) => (
@@ -234,7 +240,7 @@ function ExploreContent() {
               ))}
             </div>
 
-            {/* Pagination */}
+            {/* Pagination Controls */}
             {pagination.totalPages > 1 && (
               <div className="flex items-center justify-center gap-4 pt-6">
                 <button
@@ -258,6 +264,7 @@ function ExploreContent() {
             )}
           </>
         )}
+
       </div>
     </div>
   );
@@ -265,11 +272,13 @@ function ExploreContent() {
 
 export default function ExplorePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
-        <p className="text-xs font-bold text-slate-400 animate-pulse">Loading Explore...</p>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#fafafa] flex items-center justify-center">
+          <p className="text-xs font-bold text-slate-400 animate-pulse">Loading Explore...</p>
+        </div>
+      }
+    >
       <ExploreContent />
     </Suspense>
   );
