@@ -7,7 +7,6 @@ import { apiActions } from "@/lib/apiActions";
 import { uploadImage } from "@/lib/uploadImage";
 import {
   FiBookOpen,
-  FiActivity,
   FiEdit3,
   FiTrash2,
   FiLoader,
@@ -20,7 +19,6 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
-// Predefined Categories Array List
 const CATEGORIES = [
   "Freelancing English",
   "Speaking",
@@ -32,14 +30,13 @@ const CATEGORIES = [
 export default function ManageLessonsPage() {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Edit & Delete Modal States
+
+  // Modal & Form States
   const [editingLesson, setEditingLesson] = useState(null);
   const [deleteTargetId, setDeleteTargetId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
 
-  // Form Field States for Update
   const [editTitle, setEditTitle] = useState("");
   const [editCategory, setEditCategory] = useState("");
   const [editDifficulty, setEditDifficulty] = useState("");
@@ -51,14 +48,16 @@ export default function ManageLessonsPage() {
     setLoading(true);
     try {
       const res = await apiActions.getMyLessons();
-      if (res && res.success && res.data) {
-        setLessons(res.data);
+      if (res && res.success) {
+        setLessons(res.data || []);
       } else {
         setLessons([]);
+        toast.error(res?.message || "Could not fetch your lessons");
       }
     } catch (error) {
       console.error("Error fetching my lessons:", error);
-      toast.error("Failed to sync workspace data");
+      toast.error(error?.message || "Failed to sync workspace data");
+      setLessons([]);
     } finally {
       setLoading(false);
     }
@@ -82,7 +81,6 @@ export default function ManageLessonsPage() {
     setEditingLesson(null);
   };
 
-  // Image Upload Handler using lib/uploadImage
   const handleImageFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -99,7 +97,7 @@ export default function ManageLessonsPage() {
       }
     } catch (error) {
       console.error("Image upload error:", error);
-      toast.error("Image transmission processing failed", { id: toastId });
+      toast.error("Image upload failed", { id: toastId });
     } finally {
       setImageUploading(false);
     }
@@ -126,11 +124,12 @@ export default function ManageLessonsPage() {
         closeEditModal();
         loadMyLessons();
       } else {
-        toast.error(res.message || "Failed to update lesson");
+        toast.error(res?.message || "Failed to update lesson");
       }
     } catch (error) {
       console.error("Error updating lesson:", error);
-      toast.error("Network communication failure");
+      // Catch block error handling updated for accurate toast message
+      toast.error(error?.message || "Update failed. Please check server logs.");
     } finally {
       setSubmitting(false);
     }
@@ -146,11 +145,11 @@ export default function ManageLessonsPage() {
         setDeleteTargetId(null);
         loadMyLessons();
       } else {
-        toast.error(res.message || "Failed to purge lesson");
+        toast.error(res?.message || "Failed to purge lesson");
       }
     } catch (error) {
       console.error("Error deleting lesson:", error);
-      toast.error("Network communication failure");
+      toast.error(error?.message || "Delete failed. Check server permissions.");
     } finally {
       setSubmitting(false);
     }
@@ -192,7 +191,7 @@ export default function ManageLessonsPage() {
               Manage Lessons Workspace
             </h1>
             <p className="text-xs font-semibold text-slate-400">
-              Review, updates, optimization, and deletions of your customized lesson templates.
+              Review, update, and manage your customized lesson templates.
             </p>
           </div>
           <Link
@@ -213,7 +212,7 @@ export default function ManageLessonsPage() {
             <div className="space-y-1">
               <h3 className="text-base font-bold text-slate-800">Workspace Empty</h3>
               <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                You havent contributed any customized study material or lessons templates yet.
+                You haven't contributed any lessons yet.
               </p>
             </div>
             <Link
@@ -230,7 +229,6 @@ export default function ManageLessonsPage() {
                 key={item._id}
                 className="bg-white border border-slate-200/70 hover:border-indigo-200/80 rounded-lg shadow-2xs overflow-hidden transition-all group flex flex-col"
               >
-                {/* STRICT 16:9 IMAGE CANOPY BANNER */}
                 <div className="relative w-full aspect-video bg-slate-50 border-b border-slate-100 overflow-hidden">
                   {item.imageUrl ? (
                     <Image
@@ -256,28 +254,27 @@ export default function ManageLessonsPage() {
                   </div>
                 </div>
 
-                {/* COMPACT CLEAN INFO PADDING BOX */}
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div className="space-y-2">
                     <h2 className="text-base sm:text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1 leading-snug">
                       {item.title}
                     </h2>
                     <p className="text-xs sm:text-sm font-medium text-slate-500 line-clamp-2 leading-relaxed">
-                      {item.shortDescription || "No detailed outline overview specified for this canvas item container."}
+                      {item.shortDescription || "No detailed overview specified."}
                     </p>
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                     <button
                       onClick={() => openEditModal(item)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200 text-slate-700 hover:text-indigo-600 text-xs font-bold rounded-md transition-all cursor-pointer shadow-3xs"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-indigo-50 border border-slate-200/80 hover:border-indigo-200 text-slate-700 hover:text-indigo-600 text-xs font-bold rounded-md transition-all cursor-pointer"
                     >
                       <FiEdit3 className="w-3.5 h-3.5" />
                       <span>Edit Info</span>
                     </button>
                     <button
                       onClick={() => setDeleteTargetId(item._id)}
-                      className="inline-flex items-center justify-center p-2 bg-white hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-400 hover:text-rose-600 rounded-md transition-all cursor-pointer shadow-3xs"
+                      className="inline-flex items-center justify-center p-2 bg-white hover:bg-rose-50 border border-slate-200/80 hover:border-rose-200 text-slate-400 hover:text-rose-600 rounded-md transition-all cursor-pointer"
                       title="Purge Template"
                     >
                       <FiTrash2 className="w-4 h-4" />
@@ -291,9 +288,9 @@ export default function ManageLessonsPage() {
 
       </div>
 
-      {/* MODAL WINDOW CONFIGURATION #1: ADVANCED LESSON UPDATE FORM */}
+      {/* EDIT MODAL */}
       {editingLesson && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto font-sans tracking-wide animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto font-sans">
           <div className="bg-white border border-slate-200/80 rounded-xl w-full max-w-2xl shadow-xl flex flex-col max-h-[92vh] overflow-hidden">
             
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
@@ -319,17 +316,16 @@ export default function ManageLessonsPage() {
                     required
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 shadow-3xs"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500"
                   />
                 </div>
 
-                {/* CATEGORY DROPDOWN SELECT ARCHITECTURE */}
                 <div className="space-y-1.5">
                   <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">Category Tag</label>
                   <select
                     value={editCategory}
                     onChange={(e) => setEditCategory(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 shadow-3xs cursor-pointer"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 cursor-pointer"
                   >
                     {CATEGORIES.map((cat) => (
                       <option key={cat} value={cat}>
@@ -346,7 +342,7 @@ export default function ManageLessonsPage() {
                   <select
                     value={editDifficulty}
                     onChange={(e) => setEditDifficulty(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 shadow-3xs cursor-pointer"
+                    className="w-full bg-white border border-slate-200 rounded-lg px-3.5 py-2.5 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 cursor-pointer"
                   >
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
@@ -354,7 +350,6 @@ export default function ManageLessonsPage() {
                   </select>
                 </div>
 
-                {/* DIRECT IMAGE FILE CLOUD UPLOADER */}
                 <div className="space-y-1.5">
                   <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">Banner Image Upload</label>
                   <div className="flex items-center gap-3">
@@ -385,25 +380,22 @@ export default function ManageLessonsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">Overview Hook Summary (Short Description)</label>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">Short Description</label>
                 <textarea
                   rows={2}
                   value={editShortDescription}
                   onChange={(e) => setEditShortDescription(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg p-3.5 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 shadow-3xs resize-none leading-relaxed"
-                  placeholder="Summarized outline information hook for retention mapping..."
+                  className="w-full bg-white border border-slate-200 rounded-lg p-3.5 text-slate-800 text-sm font-semibold focus:outline-hidden focus:border-indigo-500 resize-none"
                 />
               </div>
 
-              {/* EXPANDED INITIAL SYLLABUS BOX DISPLAY CONFIGURATION */}
               <div className="space-y-1.5">
-                <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">Interactive Syllabus Document (Full Markdown Content)</label>
+                <label className="block text-[11px] uppercase tracking-wider text-slate-400 font-extrabold">Full Description (Markdown)</label>
                 <textarea
                   rows={8}
                   value={editFullDescription}
                   onChange={(e) => setEditFullDescription(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg p-3.5 text-slate-800 font-mono text-xs focus:outline-hidden focus:border-indigo-500 shadow-3xs leading-relaxed"
-                  placeholder="### Section Heading&#10;* **English:** Sentence sample&#10;* **বাংলা:** অনুবাদ বিবরণ"
+                  className="w-full bg-white border border-slate-200 rounded-lg p-3.5 text-slate-800 font-mono text-xs focus:outline-hidden focus:border-indigo-500"
                 />
               </div>
 
@@ -431,17 +423,17 @@ export default function ManageLessonsPage() {
         </div>
       )}
 
-      {/* MODAL WINDOW CONFIGURATION #2: STALWART PURGE PURIFICATION DELETION WARNING */}
+      {/* DELETE MODAL */}
       {deleteTargetId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 font-sans tracking-wide animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 font-sans">
           <div className="bg-white border border-slate-200 rounded-xl w-full max-w-sm p-6 shadow-xl text-center space-y-5">
             <div className="w-12 h-12 bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center rounded-lg mx-auto">
               <FiAlertCircle className="w-6 h-6" />
             </div>
             <div className="space-y-1.5">
-              <h4 className="text-base font-black text-slate-800 uppercase tracking-wide">Purge Content Permanently?</h4>
+              <h4 className="text-base font-black text-slate-800 uppercase tracking-wide">Delete Content Permanently?</h4>
               <p className="text-xs text-slate-400 font-semibold leading-relaxed">
-                Are you absolutely sure you want to delete this resource? This cannot be undone.
+                Are you sure you want to delete this lesson? This action cannot be undone.
               </p>
             </div>
             <div className="flex items-center gap-2 pt-1 font-bold text-xs">
@@ -460,7 +452,7 @@ export default function ManageLessonsPage() {
                 className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer transition-all shadow-xs disabled:opacity-50 inline-flex items-center justify-center gap-1.5 font-bold"
               >
                 {submitting && <FiLoader className="w-3.5 h-3.5 animate-spin" />}
-                <span>Confirm Purge</span>
+                <span>Confirm Delete</span>
               </button>
             </div>
           </div>
